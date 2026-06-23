@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-slate-50 text-slate-700 antialiased;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Very subtle dotted grid for hero/empty backgrounds — light, no glow. */
+.bg-grid {
+  background-image: radial-gradient(rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Modern accent text — a restrained indigo→violet, no neon. */
+.gradient-text {
+  @apply bg-clip-text text-transparent;
+  background-image: linear-gradient(90deg, #4f46e5, #7c3aed);
+}
+
+.btn-primary {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 font-medium text-white
+         shadow-sm transition-colors duration-150 hover:bg-indigo-700
+         disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.btn-ghost {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5
+         font-medium text-slate-700 shadow-sm transition-colors duration-150 hover:bg-slate-50;
+}
+
+.card {
+  @apply rounded-xl border border-slate-200 bg-white shadow-sm;
+}
+
+.input {
+  @apply w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-slate-900
+         placeholder:text-slate-400 outline-none transition-colors
+         focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20;
+}
+
+.label {
+  @apply mb-1.5 block text-sm font-medium text-slate-700;
+}

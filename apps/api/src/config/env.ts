@@ -19,6 +19,9 @@ const envSchema = z.object({
   // (the "querySrv ECONNREFUSED" error). Defaults to public resolvers.
   DNS_SERVERS: z.string().default('8.8.8.8,1.1.1.1'),
   FRONTEND_URL: z.string().url().default('http://localhost:3000'),
+  // Seed idempotent demo data on startup (development only). Set to 'false' to
+  // disable. Never runs when NODE_ENV=production regardless of this value.
+  SEED_DEMO: z.enum(['true', 'false']).default('true'),
 
   // Auth — separate secrets so an access token can never act as a refresh
   // token (and vice versa), even if one leaks.

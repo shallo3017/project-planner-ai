@@ -2,6 +2,7 @@ import http from "node:http";
 import { createApp } from "./app";
 import { connectDatabase, disconnectDatabase } from "./config/db";
 import { env } from "./config/env";
+import { seedDemoData } from "./services/seed.service";
 
 async function bootstrap(): Promise<void> {
   // 1. Connect to MongoDB if configured. When MONGODB_URI is empty the API
@@ -9,6 +10,16 @@ async function bootstrap(): Promise<void> {
   //    endpoint testing before Atlas is wired up.
   if (env.MONGODB_URI) {
     await connectDatabase();
+
+    // Seed idempotent demo data in development so there's always test data.
+    // Never runs in production; toggle with SEED_DEMO=false.
+    if (env.NODE_ENV === "development" && env.SEED_DEMO === "true") {
+      try {
+        await seedDemoData();
+      } catch (err) {
+        console.error("⚠️  Demo seed failed (continuing without it):", err);
+      }
+    }
   } else {
     console.log(
       "⚠️  MONGODB_URI not set — using in-memory store (data resets on restart)",

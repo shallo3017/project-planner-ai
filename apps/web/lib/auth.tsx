@@ -1,0 +1,112 @@
+'use client';
+
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from 'react';
+import { apiFetch, getAccessToken, setAccessToken } from './api';
+
+export interface User {
+  id: string;
+  fullName: string;
+  email: string;
+  role: 'client' | 'admin' | 'tech';
+  isActive: boolean;
+}
+
+interface AuthResponse {
+  accessToken: string;
+  user: User;
+}
+
+interface AuthContextValue {
+  user: User | null;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (fullName: string, email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // On first load, try to restore the session: the refresh cookie can mint a
+  // fresh access token even after a page reload (when the JS-held token is gone).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await apiFetch<AuthResponse>('/auth/refresh', { method: 'POST' });
+        if (!cancelled) {
+          setAccessToken(data.accessToken);
+          setUser(data.user);
+        }
+      } catch {
+        // No valid refresh cookie. If we still hold a token, validate it via /me.
+        if (getAccessToken()) {
+          try {
+            const me = await apiFetch<{ user: User }>('/auth/me');
+            if (!cancelled) setUser(me.user);
+          } catch {
+            setAccessToken(null);
+          }
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const login = useCallback(async (email: string, password: string) => {
+    const data = await apiFetch<AuthResponse>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+    setAccessToken(data.accessToken);
+    setUser(data.user);
+  }, []);
+
+  const register = useCallback(
+    async (fullName: string, email: string, password: string) => {
+      const data = await apiFetch<AuthResponse>('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ fullName, email, password }),
+      });
+      setAccessToken(data.accessToken);
+      setUser(data.user);
+    },
+    [],
+  );
+
+  const logout = useCallback(async () => {
+    try {
+      await apiFetch('/auth/logout', { method: 'POST' });
+    } catch {
+      /* ignore — clear locally regardless */
+    }
+    setAccessToken(null);
+    setUser(null);
+  }, []);
+
+  return (
+    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth(): AuthContextValue {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within <AuthProvider>');
+  return ctx;
+}

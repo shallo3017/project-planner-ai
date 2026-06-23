@@ -7,6 +7,7 @@ import { env } from './config/env';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware';
 import adminRoutes from './routes/admin.routes';
 import authRoutes from './routes/auth.routes';
+import documentRoutes from './routes/documents.routes';
 import healthRoutes from './routes/health.routes';
 import projectRoutes from './routes/projects.routes';
 
@@ -20,10 +21,19 @@ export function createApp(): Express {
   // Security headers (CSP, HSTS, X-Frame-Options, ...).
   app.use(helmet());
 
-  // CORS — restricted to the frontend origin, cookies allowed for JWT refresh.
+  // CORS — allow the configured frontend origin (cookies enabled for JWT
+  // refresh). In development, also accept any localhost:<port> so it doesn't
+  // matter which port Next.js picks (3000, 3001, …).
+  const allowedOrigins = new Set([env.FRONTEND_URL]);
   app.use(
     cors({
-      origin: env.FRONTEND_URL,
+      origin: (origin, cb) => {
+        const ok =
+          !origin || // same-origin / curl / server-to-server
+          allowedOrigins.has(origin) ||
+          (env.NODE_ENV !== 'production' && /^http:\/\/localhost:\d+$/.test(origin));
+        cb(ok ? null : new Error('Not allowed by CORS'), ok);
+      },
       credentials: true,
     }),
   );
@@ -45,6 +55,7 @@ export function createApp(): Express {
   app.use('/api/health', healthRoutes);
   app.use('/api/auth', authRoutes);
   app.use('/api/projects', projectRoutes);
+  app.use('/api/documents', documentRoutes);
   app.use('/api/admin', adminRoutes);
 
   // 404 + error handling — must be registered last.
