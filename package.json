@@ -1,0 +1,20 @@
+{
+  "name": "ai-roadmap-generator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI Project-Roadmap Generator — converts requirements into PRD + TRD documents",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace apps/api",
+    "build": "npm run build --workspace apps/api",
+    "start": "npm run start --workspace apps/api",
+    "db:ping": "npm run db:ping --workspace apps/api",
+    "type-check": "npm run type-check --workspaces --if-present"
+  }
+}

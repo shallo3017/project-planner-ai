@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Prisma generated client (regenerate with `npm run prisma:generate`)
+apps/api/src/generated/
+
+# Environment / secrets — never commit
+.env
+.env.local
+.env.*.local
+
+# Uploads (local object storage in MVP)
+uploads/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
