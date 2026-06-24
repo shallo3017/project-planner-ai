@@ -47,3 +47,26 @@ body {
 .label {
   @apply mb-1.5 block text-sm font-medium text-slate-700;
 }
+
+/* Print: show only the document (.print-area), hide nav/buttons/chrome. */
+@media print {
+  body {
+    background: #fff;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: 0 1rem;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

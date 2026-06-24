@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/lib/auth';
+import { homePathForRole, useAuth } from '@/lib/auth';
 import { Brand } from './brand';
 
 /** Shared login / register form. The two (auth) pages are thin wrappers. */
@@ -18,9 +18,9 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Already signed in? Go to the dashboard.
+  // Once signed in (now or after submit), land on the role's home.
   useEffect(() => {
-    if (!loading && user) router.replace('/dashboard');
+    if (!loading && user) router.replace(homePathForRole(user.role));
   }, [loading, user, router]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -30,7 +30,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
     try {
       if (isLogin) await login(email, password);
       else await register(fullName, email, password);
-      router.replace('/dashboard');
+      // Redirect handled by the effect above once `user` is set.
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {

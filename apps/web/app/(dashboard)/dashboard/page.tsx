@@ -1,13 +1,18 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import {
+  Download,
+  Eye,
+  FolderOpen,
+  Plus,
+  RefreshCw,
+  Sparkles,
+} from 'lucide-react';
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
-import { Footer } from '@/components/footer';
-import { NavBar } from '@/components/navbar';
-import { apiFetch } from '@/lib/api';
+import { apiDownload, apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 
-// ── Types ────────────────────────────────────────────────────────────────────
 interface Project {
   id: string;
   name: string;
@@ -26,41 +31,7 @@ const STATUS_STYLES: Record<Project['status'], string> = {
 };
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const { user, loading } = useAuth();
-
-  // Client-side route protection: bounce unauthenticated users to /login.
-  useEffect(() => {
-    if (!loading && !user) router.replace('/login');
-  }, [loading, user, router]);
-
-  if (loading || !user) {
-    return (
-      <div className="bg-grid min-h-screen">
-        <NavBar />
-        <div className="grid place-items-center py-40 text-slate-500">Loading…</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-grid min-h-screen">
-      <NavBar />
-      <main className="mx-auto max-w-6xl px-6 py-12">
-        <div className="animate-fade-up">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-            Welcome back, {user.fullName.split(' ')[0]} 👋
-          </h1>
-          <p className="mt-1 text-slate-600">Create a project, then generate its PRD &amp; TRD.</p>
-        </div>
-        <ProjectsSection />
-      </main>
-      <Footer />
-    </div>
-  );
-}
-
-function ProjectsSection() {
+  const { user } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -83,140 +54,113 @@ function ProjectsSection() {
   }, [load]);
 
   return (
-    <div className="mt-10 grid gap-8 lg:grid-cols-[360px_1fr]">
-      <CreateProject onCreated={load} />
-
-      <section>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">
-            Your projects <span className="text-slate-400">({projects.length})</span>
-          </h2>
-          <button onClick={load} className="text-sm text-slate-500 hover:text-slate-900">
-            ↻ Refresh
-          </button>
+    <main className="mx-auto max-w-6xl px-6 py-12">
+      <div className="animate-fade-up flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+            Welcome back, {user?.fullName.split(' ')[0]} 👋
+          </h1>
+          <p className="mt-1 text-slate-600">
+            Your projects{' '}
+            <span className="text-slate-400">({projects.length})</span>
+          </p>
         </div>
+        <div className="flex items-center gap-2">
+          <button onClick={load} className="btn-ghost px-3 py-2 text-sm">
+            <RefreshCw className="h-4 w-4" /> Refresh
+          </button>
+          <Link href="/dashboard/new" className="btn-primary px-4 py-2 text-sm">
+            <Plus className="h-4 w-4" /> New Project
+          </Link>
+        </div>
+      </div>
 
-        {error && (
-          <div className="card border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+      {error && (
+        <div className="card mt-6 border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
+      )}
 
+      <div className="mt-8">
         {loading ? (
           <div className="card grid place-items-center py-16 text-slate-500">Loading…</div>
         ) : projects.length === 0 ? (
-          <div className="card grid place-items-center gap-2 py-16 text-center">
-            <div className="text-3xl">🗂️</div>
+          <div className="card grid place-items-center gap-3 py-20 text-center">
+            <FolderOpen className="h-10 w-10 text-slate-300" />
             <p className="font-medium text-slate-700">No projects yet</p>
-            <p className="text-sm text-slate-500">Create your first one on the left.</p>
+            <Link href="/dashboard/new" className="btn-primary px-4 py-2 text-sm">
+              <Plus className="h-4 w-4" /> Create your first project
+            </Link>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {projects.map((p) => (
               <ProjectCard key={p.id} project={p} />
             ))}
           </div>
         )}
-      </section>
-    </div>
+      </div>
+    </main>
   );
 }
 
-function CreateProject({ onCreated }: { onCreated: () => void }) {
-  const [name, setName] = useState('');
-  const [industry, setIndustry] = useState('');
-  const [description, setDescription] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSubmitting(true);
-    setError(null);
-    try {
-      await apiFetch('/projects', {
-        method: 'POST',
-        body: JSON.stringify({
-          name,
-          industry: industry || undefined,
-          description: description || undefined,
-        }),
-      });
-      setName('');
-      setIndustry('');
-      setDescription('');
-      onCreated();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create project');
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="card animate-fade-up h-fit p-6">
-      <h2 className="text-lg font-semibold text-slate-900">New project</h2>
-      <p className="mt-1 text-sm text-slate-500">The starting point for your roadmap.</p>
-
-      <div className="mt-5 space-y-4">
-        <div>
-          <label className="label" htmlFor="name">
-            Name
-          </label>
-          <input
-            id="name"
-            className="input"
-            placeholder="e.g. Fintech onboarding app"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label className="label" htmlFor="industry">
-            Industry <span className="text-slate-600">(optional)</span>
-          </label>
-          <input
-            id="industry"
-            className="input"
-            placeholder="Fintech, Health, Retail…"
-            value={industry}
-            onChange={(e) => setIndustry(e.target.value)}
-          />
-        </div>
-        <div>
-          <label className="label" htmlFor="description">
-            Description <span className="text-slate-600">(optional)</span>
-          </label>
-          <textarea
-            id="description"
-            className="input min-h-[88px] resize-y"
-            placeholder="A sentence or two about the goal…"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-        </div>
-
-        {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-
-        <button type="submit" className="btn-primary w-full" disabled={submitting}>
-          {submitting ? 'Creating…' : 'Create project'}
-        </button>
-      </div>
-    </form>
-  );
+interface DocMeta {
+  id: string;
+  docType: 'prd' | 'trd';
+  isApproved: boolean;
 }
 
 function ProjectCard({ project }: { project: Project }) {
+  const [docs, setDocs] = useState<DocMeta[]>([]);
+  const [generating, setGenerating] = useState(false);
+  const [downloading, setDownloading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadDocs = useCallback(async () => {
+    try {
+      const data = await apiFetch<{ documents: DocMeta[] }>(`/documents/${project.id}`);
+      setDocs(data.documents);
+    } catch {
+      /* no docs yet */
+    }
+  }, [project.id]);
+
+  useEffect(() => {
+    void loadDocs();
+  }, [loadDocs]);
+
+  const slug = project.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+  async function generate() {
+    setGenerating(true);
+    setError(null);
+    try {
+      await apiFetch(`/ai/generate/${project.id}`, { method: 'POST' });
+      await loadDocs();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Generation failed');
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function download(docType: 'prd' | 'trd') {
+    setDownloading(docType);
+    setError(null);
+    try {
+      await apiDownload(`/documents/${project.id}/${docType}/download`, `${slug}-${docType}.md`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Download failed');
+    } finally {
+      setDownloading(null);
+    }
+  }
+
   const created = new Date(project.createdAt).toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
   });
+  const hasDocs = docs.length > 0;
+
   return (
     <div className="card animate-fade-up flex flex-col p-5 transition-shadow hover:shadow-md">
       <div className="flex items-start justify-between gap-3">
@@ -228,23 +172,64 @@ function ProjectCard({ project }: { project: Project }) {
         </span>
       </div>
       {project.industry && (
-        <p className="mt-1 text-xs uppercase tracking-wide text-indigo-600">
-          {project.industry}
-        </p>
+        <p className="mt-1 text-xs uppercase tracking-wide text-indigo-600">{project.industry}</p>
       )}
       {project.description && (
         <p className="mt-2 line-clamp-2 text-sm text-slate-600">{project.description}</p>
       )}
-      <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
-        <span className="text-xs text-slate-500">Created {created}</span>
-        <button
-          className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-500"
-          disabled
-          title="Coming soon"
-        >
-          Generate PRD/TRD · soon
-        </button>
+
+      <div className="mt-auto pt-4">
+        <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
+          <span className="text-xs text-slate-500">Created {created}</span>
+
+          {generating ? (
+            <span className="inline-flex items-center gap-2 text-xs text-slate-500">
+              <Spinner /> Generating…
+            </span>
+          ) : hasDocs ? (
+            <div className="flex items-center gap-1.5">
+              <Link
+                href={`/documents/${project.id}`}
+                className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50"
+              >
+                <Eye className="h-3.5 w-3.5" /> View
+              </Link>
+              {(['prd', 'trd'] as const).map((t) =>
+                docs.some((d) => d.docType === t) ? (
+                  <button
+                    key={t}
+                    onClick={() => download(t)}
+                    disabled={downloading === t}
+                    className="inline-flex items-center gap-1 rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700 transition-colors hover:bg-indigo-100 disabled:opacity-50"
+                  >
+                    <Download className="h-3.5 w-3.5" /> {t.toUpperCase()}
+                  </button>
+                ) : null,
+              )}
+            </div>
+          ) : (
+            <button onClick={generate} className="btn-primary px-3 py-1 text-xs">
+              <Sparkles className="h-3.5 w-3.5" /> Generate
+            </button>
+          )}
+        </div>
+
+        {hasDocs && !generating && (
+          <button
+            onClick={generate}
+            className="mt-2 inline-flex items-center gap-1 text-xs text-slate-400 transition-colors hover:text-slate-600"
+          >
+            <RefreshCw className="h-3 w-3" /> Regenerate
+          </button>
+        )}
+        {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
       </div>
     </div>
+  );
+}
+
+function Spinner() {
+  return (
+    <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-300 border-t-indigo-500" />
   );
 }

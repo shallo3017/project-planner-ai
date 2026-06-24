@@ -43,3 +43,31 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   }
   return data as T;
 }
+
+/** Fetch a file (with auth) and trigger a browser download. */
+export async function apiDownload(path: string, filename: string): Promise<void> {
+  const token = getAccessToken();
+  const res = await fetch(`${API_BASE}/api${path}`, {
+    credentials: 'include',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) {
+    let msg = `Download failed (${res.status})`;
+    try {
+      const j = JSON.parse(await res.text());
+      msg = j.error || j.message || msg;
+    } catch {
+      /* non-JSON error body */
+    }
+    throw new Error(msg);
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}

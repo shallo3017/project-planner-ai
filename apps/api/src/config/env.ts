@@ -31,6 +31,12 @@ const envSchema = z.object({
     .min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
+
+  // Groq (AI). Optional so the API boots without it — the generate endpoint
+  // returns a clear 503 until a key is set. Get a free key at console.groq.com.
+  GROQ_API_KEY: z.string().optional(),
+  GROQ_MODEL: z.string().default('llama-3.3-70b-versatile'),
+  GROQ_MAX_TOKENS: z.coerce.number().int().positive().default(4096),
 });
 
 const parsed = envSchema.safeParse(process.env);

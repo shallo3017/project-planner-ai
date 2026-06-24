@@ -1,9 +1,14 @@
 import type { Request, Response } from 'express';
+import { z } from 'zod';
 import { ApiError } from '../middleware/error.middleware';
 import { AiDocumentModel } from '../models/AiDocument';
 import { ProjectModel } from '../models/Project';
 
 type DocType = 'prd' | 'trd';
+
+export const updateDocumentSchema = z.object({
+  content: z.string().min(1, 'content cannot be empty'),
+});
 
 function parseDocType(raw: string): DocType {
   if (raw !== 'prd' && raw !== 'trd') {
@@ -82,4 +87,51 @@ export async function downloadDocument(req: Request, res: Response): Promise<voi
   res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.send(body);
+}
+
+/**
+ * PATCH /api/documents/:id/approve — mark a document approved (client sign-off).
+ * Only the owning client or an admin may approve; tech is read-only.
+ */
+export async function approveDocument(req: Request, res: Response): Promise<void> {
+  const document = await AiDocumentModel.findById(req.params.id);
+  if (!document) throw new ApiError(404, 'Document not found');
+
+  const project = await ProjectModel.findById(document.projectId);
+  if (!project) throw new ApiError(404, 'Document not found');
+
+  const { role, sub } = req.user!;
+  const isOwner = String(project.ownerId) === sub;
+  if (role !== 'admin' && !isOwner) {
+    throw new ApiError(403, 'Only the project owner or an admin can approve documents');
+  }
+
+  document.isApproved = true;
+  await document.save();
+  res.json({ document });
+}
+
+/**
+ * PATCH /api/documents/:id — edit a document's content. Owner or admin only
+ * (tech is read-only). Editing clears approval, so it must be re-approved.
+ */
+export async function updateDocument(req: Request, res: Response): Promise<void> {
+  const { content } = req.body as z.infer<typeof updateDocumentSchema>;
+
+  const document = await AiDocumentModel.findById(req.params.id);
+  if (!document) throw new ApiError(404, 'Document not found');
+
+  const project = await ProjectModel.findById(document.projectId);
+  if (!project) throw new ApiError(404, 'Document not found');
+
+  const { role, sub } = req.user!;
+  const isOwner = String(project.ownerId) === sub;
+  if (role !== 'admin' && !isOwner) {
+    throw new ApiError(403, 'Only the project owner or an admin can edit documents');
+  }
+
+  document.content = content;
+  document.isApproved = false; // edited content needs re-approval
+  await document.save();
+  res.json({ document });
 }

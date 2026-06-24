@@ -5,15 +5,15 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Footer } from '@/components/footer';
 import { NavBar } from '@/components/navbar';
-import { useAuth } from '@/lib/auth';
+import { homePathForRole, useAuth } from '@/lib/auth';
 
 export default function HomePage() {
   const router = useRouter();
   const { user, loading } = useAuth();
 
-  // Signed-in users land on the dashboard, not the marketing page.
+  // Signed-in users land on their role's home, not the marketing page.
   useEffect(() => {
-    if (!loading && user) router.replace('/dashboard');
+    if (!loading && user) router.replace(homePathForRole(user.role));
   }, [loading, user, router]);
 
   return (

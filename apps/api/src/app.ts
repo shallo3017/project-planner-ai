@@ -6,6 +6,7 @@ import morgan from 'morgan';
 import { env } from './config/env';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware';
 import adminRoutes from './routes/admin.routes';
+import aiRoutes from './routes/ai.routes';
 import authRoutes from './routes/auth.routes';
 import documentRoutes from './routes/documents.routes';
 import healthRoutes from './routes/health.routes';
@@ -56,6 +57,7 @@ export function createApp(): Express {
   app.use('/api/auth', authRoutes);
   app.use('/api/projects', projectRoutes);
   app.use('/api/documents', documentRoutes);
+  app.use('/api/ai', aiRoutes);
   app.use('/api/admin', adminRoutes);
 
   // 404 + error handling — must be registered last.

@@ -110,3 +110,8 @@ export function useAuth(): AuthContextValue {
   if (!ctx) throw new Error('useAuth must be used within <AuthProvider>');
   return ctx;
 }
+
+/** Where a user should land after auth, based on their role. */
+export function homePathForRole(role: User['role']): string {
+  return role === 'admin' ? '/admin/dashboard' : '/dashboard';
+}
