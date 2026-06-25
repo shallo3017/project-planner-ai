@@ -20,9 +20,48 @@ export function getAccessToken(): string | null {
   return accessToken;
 }
 
+// Endpoints that must NOT trigger a refresh-retry (avoids loops).
+const NO_REFRESH = ['/auth/refresh', '/auth/login', '/auth/logout', '/auth/register'];
+
+// De-duped refresh: many concurrent 401s share one refresh round-trip.
+let refreshing: Promise<boolean> | null = null;
+
+function tryRefresh(): Promise<boolean> {
+  if (!refreshing) {
+    refreshing = fetch(`${API_BASE}/api/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+    })
+      .then(async (r) => {
+        if (!r.ok) return false;
+        const d = await r.json();
+        setAccessToken(d.accessToken);
+        return true;
+      })
+      .catch(() => false)
+      .finally(() => {
+        refreshing = null;
+      });
+  }
+  return refreshing;
+}
+
+/** Session truly expired → clear token and send the user to login. */
+function forceLogout(): void {
+  setAccessToken(null);
+  if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+    window.location.href = '/login';
+  }
+}
+
 /** Thin fetch wrapper: prefixes /api, attaches the bearer token, parses JSON,
- *  sends cookies, and throws a friendly Error on non-2xx responses. */
-export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+ *  sends cookies, transparently refreshes an expired token, and logs the user
+ *  out if the refresh fails. Throws a friendly Error on non-2xx responses. */
+export async function apiFetch<T>(
+  path: string,
+  options: RequestInit = {},
+  _retried = false,
+): Promise<T> {
   const token = getAccessToken();
   const res = await fetch(`${API_BASE}/api${path}`, {
     ...options,
@@ -34,6 +73,13 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
     },
   });
 
+  // Access token expired: refresh once and retry, else log out.
+  if (res.status === 401 && !_retried && !NO_REFRESH.some((p) => path.startsWith(p))) {
+    if (await tryRefresh()) return apiFetch<T>(path, options, true);
+    forceLogout();
+    throw new Error('Session expired — please sign in again');
+  }
+
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
 
@@ -44,13 +90,20 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   return data as T;
 }
 
-/** Fetch a file (with auth) and trigger a browser download. */
-export async function apiDownload(path: string, filename: string): Promise<void> {
+/** Fetch a file (with auth + refresh-retry) and trigger a browser download. */
+export async function apiDownload(path: string, filename: string, _retried = false): Promise<void> {
   const token = getAccessToken();
   const res = await fetch(`${API_BASE}/api${path}`, {
     credentials: 'include',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
+
+  if (res.status === 401 && !_retried) {
+    if (await tryRefresh()) return apiDownload(path, filename, true);
+    forceLogout();
+    throw new Error('Session expired — please sign in again');
+  }
+
   if (!res.ok) {
     let msg = `Download failed (${res.status})`;
     try {
@@ -61,6 +114,7 @@ export async function apiDownload(path: string, filename: string): Promise<void>
     }
     throw new Error(msg);
   }
+
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

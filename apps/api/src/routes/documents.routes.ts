@@ -4,6 +4,7 @@ import {
   downloadDocument,
   getDocument,
   listDocuments,
+  listMyDocuments,
   updateDocument,
   updateDocumentSchema,
 } from '../controllers/documents.controller';
@@ -17,6 +18,7 @@ const router = Router();
 // tech-approved-only) is enforced inside the controller.
 router.use(requireAuth);
 
+router.get('/', asyncHandler(listMyDocuments));
 router.patch('/:id/approve', asyncHandler(approveDocument));
 router.patch('/:id', validateBody(updateDocumentSchema), asyncHandler(updateDocument));
 router.get('/:projectId', asyncHandler(listDocuments));

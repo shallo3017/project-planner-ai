@@ -40,6 +40,23 @@ function approvedOnlyFor(req: Request): boolean {
   return req.user!.role === 'tech';
 }
 
+/** GET /api/documents — every document the caller can access (with project info).
+ *  admin → all · tech → approved only · client → own projects' docs. */
+export async function listMyDocuments(req: Request, res: Response): Promise<void> {
+  const { role, sub } = req.user!;
+  let filter: Record<string, unknown> = {};
+  if (role === 'tech') {
+    filter = { isApproved: true };
+  } else if (role !== 'admin') {
+    const owned = await ProjectModel.find({ ownerId: sub }).select('_id');
+    filter = { projectId: { $in: owned.map((p) => p._id) } };
+  }
+  const documents = await AiDocumentModel.find(filter)
+    .populate('projectId', 'name status')
+    .sort({ updatedAt: -1 });
+  res.json({ documents });
+}
+
 /** GET /api/documents/:projectId — list the project's PRD + TRD. */
 export async function listDocuments(req: Request, res: Response): Promise<void> {
   await loadAccessibleProject(req);

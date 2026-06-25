@@ -33,6 +33,7 @@ interface SeedProject {
   budgetRange: string;
   targetCountries: string[];
   status: 'draft' | 'in_review' | 'approved' | 'locked' | 'archived';
+  deadline?: string; // ISO date
 }
 
 const SEED_PROJECTS: SeedProject[] = [
@@ -44,6 +45,7 @@ const SEED_PROJECTS: SeedProject[] = [
     budgetRange: '$10k–$50k',
     targetCountries: ['IN', 'AE'],
     status: 'in_review',
+    deadline: '2026-08-15',
   },
   {
     ownerEmail: 'client@example.com',
@@ -53,6 +55,7 @@ const SEED_PROJECTS: SeedProject[] = [
     budgetRange: '$50k–$100k',
     targetCountries: ['IN', 'US'],
     status: 'draft',
+    deadline: '2026-09-30',
   },
   {
     ownerEmail: 'priya@example.com',
@@ -172,6 +175,7 @@ export async function seedDemoData(): Promise<void> {
           budgetRange: p.budgetRange,
           targetCountries: p.targetCountries,
           status: p.status,
+          ...(p.deadline ? { deadline: new Date(p.deadline) } : {}),
         },
       },
       { upsert: true, new: true },

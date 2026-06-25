@@ -97,7 +97,7 @@ export default function AdminUsersPage() {
   const visible = tab === 'all' ? users : users.filter((u) => u.role === tab);
 
   return (
-    <div className="animate-fade-up">
+    <main className="mx-auto max-w-6xl animate-fade-up px-6 py-10">
       <h1 className="text-3xl font-bold tracking-tight text-slate-900">Users</h1>
       <p className="mt-1 text-slate-600">Manage roles and access for everyone on the platform.</p>
 
@@ -195,6 +195,6 @@ export default function AdminUsersPage() {
           </table>
         )}
       </div>
-    </div>
+    </main>
   );
 }

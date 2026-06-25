@@ -9,6 +9,7 @@ export const createProjectSchema = z.object({
   industry: z.string().optional(),
   description: z.string().optional(),
   budgetRange: z.string().optional(),
+  deadline: z.coerce.date().nullable().optional(),
   targetCountries: z.array(z.string()).default([]),
   status: z
     .enum(['draft', 'in_review', 'approved', 'locked', 'archived'])

@@ -20,16 +20,18 @@ export interface ChatResult {
   tokensUsed: number;
 }
 
-/** One non-streaming chat completion against the configured Groq model. */
+/** One non-streaming chat completion against the configured Groq model.
+ *  Set opts.json to force a JSON-object response (Groq JSON mode). */
 export async function chatCompletion(
   messages: ChatMessage[],
-  opts: { temperature?: number } = {},
+  opts: { temperature?: number; json?: boolean } = {},
 ): Promise<ChatResult> {
   const res = await getClient().chat.completions.create({
     model: env.GROQ_MODEL,
     messages,
     max_tokens: env.GROQ_MAX_TOKENS,
     temperature: opts.temperature ?? 0.4,
+    ...(opts.json ? { response_format: { type: 'json_object' as const } } : {}),
   });
 
   return {

@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import {
+  changePassword,
+  changePasswordSchema,
   login,
   loginSchema,
   logout,
@@ -7,6 +9,8 @@ import {
   refresh,
   register,
   registerSchema,
+  updateMe,
+  updateMeSchema,
 } from '../controllers/auth.controller';
 import { requireAuth } from '../middleware/auth.middleware';
 import { validateBody } from '../middleware/validate.middleware';
@@ -19,5 +23,12 @@ router.post('/login', validateBody(loginSchema), asyncHandler(login));
 router.post('/refresh', asyncHandler(refresh));
 router.post('/logout', logout);
 router.get('/me', requireAuth, asyncHandler(me));
+router.patch('/me', requireAuth, validateBody(updateMeSchema), asyncHandler(updateMe));
+router.patch(
+  '/me/password',
+  requireAuth,
+  validateBody(changePasswordSchema),
+  asyncHandler(changePassword),
+);
 
 export default router;

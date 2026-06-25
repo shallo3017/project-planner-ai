@@ -16,6 +16,7 @@ const projectSchema = new Schema(
     industry: { type: String, trim: true },
     description: { type: String, trim: true },
     budgetRange: { type: String, trim: true },
+    deadline: { type: Date, default: null },
     targetCountries: { type: [String], default: [] },
     status: {
       type: String,

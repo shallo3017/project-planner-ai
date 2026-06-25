@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, Check, Download, FileText, Pencil, Printer, X } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Check, Download, FileText, Pencil, Printer, X } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import Markdown from 'react-markdown';
@@ -90,6 +90,19 @@ export default function DocumentsPage({ params }: { params: { projectId: string 
     }
   }
 
+  async function approve() {
+    if (!current) return;
+    setError(null);
+    try {
+      const { document } = await apiFetch<{ document: AiDoc }>(`/documents/${current.id}/approve`, {
+        method: 'PATCH',
+      });
+      setDocs((prev) => prev.map((d) => (d.id === document.id ? document : d)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Approve failed');
+    }
+  }
+
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
       <div className="no-print">
@@ -136,6 +149,14 @@ export default function DocumentsPage({ params }: { params: { projectId: string 
                 </>
               ) : (
                 <>
+                  {canEdit && !current.isApproved && (
+                    <button
+                      onClick={approve}
+                      className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
+                    >
+                      <BadgeCheck className="h-4 w-4" /> Approve
+                    </button>
+                  )}
                   {canEdit && (
                     <button onClick={startEdit} className="btn-ghost px-3 py-2 text-sm">
                       <Pencil className="h-4 w-4" /> Edit

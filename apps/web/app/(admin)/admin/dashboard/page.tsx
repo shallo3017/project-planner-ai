@@ -1,7 +1,20 @@
 'use client';
 
-import Link from 'next/link';
+import { DollarSign, FileText, FolderKanban, Users } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import { apiFetch } from '@/lib/api';
 
 interface Stats {
@@ -15,6 +28,16 @@ interface Stats {
     archived: number;
   };
   documents: { total: number; approved: number };
+  revenue: { estimatedTotal: number; byIndustry: { name: string; value: number }[] };
+  projectsByMonth: { name: string; value: number }[];
+}
+
+const PIE_COLORS = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#94a3b8'];
+
+function money(n: number): string {
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `$${Math.round(n / 1000)}k`;
+  return `$${n}`;
 }
 
 export default function AdminDashboardPage() {
@@ -38,39 +61,115 @@ export default function AdminDashboardPage() {
     void load();
   }, [load]);
 
+  const statusData = stats
+    ? [
+        { name: 'Draft', value: stats.projects.draft },
+        { name: 'In review', value: stats.projects.in_review },
+        { name: 'Approved', value: stats.projects.approved },
+        { name: 'Locked', value: stats.projects.locked },
+        { name: 'Archived', value: stats.projects.archived },
+      ]
+    : [];
+
   return (
-    <div className="animate-fade-up">
-      <h1 className="text-3xl font-bold tracking-tight text-slate-900">Overview</h1>
-      <p className="mt-1 text-slate-600">Platform activity at a glance.</p>
+    <main className="mx-auto max-w-6xl px-6 py-10">
+      <div className="animate-fade-up">
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Analytics</h1>
+        <p className="mt-1 text-slate-600">Platform activity and pipeline at a glance.</p>
+      </div>
 
       {error && (
         <div className="card mt-6 border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
       )}
 
-      {/* Headline KPIs */}
-      <div className="mt-8 grid gap-4 sm:grid-cols-3">
-        <Kpi label="Users" value={stats?.users.total} loading={loading} href="/admin/users" />
-        <Kpi label="Projects" value={stats?.projects.total} loading={loading} href="/admin/projects" />
-        <Kpi label="Documents" value={stats?.documents.total} loading={loading} />
+      {/* KPI cards */}
+      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Kpi label="Users" value={stats?.users.total} loading={loading} icon={Users} tint="text-indigo-600 bg-indigo-50" />
+        <Kpi label="Projects" value={stats?.projects.total} loading={loading} icon={FolderKanban} tint="text-sky-600 bg-sky-50" />
+        <Kpi label="Documents" value={stats?.documents.total} loading={loading} icon={FileText} tint="text-emerald-600 bg-emerald-50" />
+        <Kpi
+          label="Est. revenue"
+          value={stats ? money(stats.revenue.estimatedTotal) : undefined}
+          loading={loading}
+          icon={DollarSign}
+          tint="text-amber-600 bg-amber-50"
+          hint="estimated from project budgets"
+        />
       </div>
 
-      {/* Breakdowns */}
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        <Panel title="Users by role">
-          <Bar label="Clients" value={stats?.users.client ?? 0} total={stats?.users.total ?? 0} color="bg-slate-400" />
-          <Bar label="Developers" value={stats?.users.tech ?? 0} total={stats?.users.total ?? 0} color="bg-sky-500" />
-          <Bar label="Admins" value={stats?.users.admin ?? 0} total={stats?.users.total ?? 0} color="bg-indigo-500" />
-        </Panel>
+      {/* Charts */}
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <ChartCard title="Projects created (last 6 months)">
+          <ResponsiveContainer width="100%" height={240}>
+            <AreaChart data={stats?.projectsByMonth ?? []} margin={{ left: -20, right: 8, top: 8 }}>
+              <defs>
+                <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#6366f1" stopOpacity={0.35} />
+                  <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+              <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
+              <Tooltip />
+              <Area type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={2} fill="url(#g)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </ChartCard>
 
-        <Panel title="Projects by status">
-          <Bar label="Draft" value={stats?.projects.draft ?? 0} total={stats?.projects.total ?? 0} color="bg-slate-400" />
-          <Bar label="In review" value={stats?.projects.in_review ?? 0} total={stats?.projects.total ?? 0} color="bg-amber-500" />
-          <Bar label="Approved" value={stats?.projects.approved ?? 0} total={stats?.projects.total ?? 0} color="bg-emerald-500" />
-          <Bar label="Locked" value={stats?.projects.locked ?? 0} total={stats?.projects.total ?? 0} color="bg-indigo-500" />
-          <Bar label="Archived" value={stats?.projects.archived ?? 0} total={stats?.projects.total ?? 0} color="bg-slate-300" />
-        </Panel>
+        <ChartCard title="Projects by status">
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={statusData} margin={{ left: -20, right: 8, top: 8 }}>
+              <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+              <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
+              <Tooltip cursor={{ fill: '#f1f5f9' }} />
+              <Bar dataKey="value" radius={[6, 6, 0, 0]} fill="#6366f1" />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard title="Estimated revenue by industry">
+          {stats && stats.revenue.byIndustry.length > 0 ? (
+            <ResponsiveContainer width="100%" height={240}>
+              <PieChart>
+                <Pie
+                  data={stats.revenue.byIndustry}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={55}
+                  outerRadius={85}
+                  paddingAngle={2}
+                >
+                  {stats.revenue.byIndustry.map((_, i) => (
+                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => money(Number(value))} />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="grid h-[240px] place-items-center text-sm text-slate-400">No data</div>
+          )}
+          {stats && (
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
+              {stats.revenue.byIndustry.map((d, i) => (
+                <span key={d.name} className="flex items-center gap-1.5 text-xs text-slate-600">
+                  <span className="h-2 w-2 rounded-full" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
+                  {d.name} · {money(d.value)}
+                </span>
+              ))}
+            </div>
+          )}
+        </ChartCard>
+
+        <ChartCard title="Users by role">
+          <div className="flex h-[240px] flex-col justify-center gap-5 px-2">
+            <RoleBar label="Clients" value={stats?.users.client ?? 0} total={stats?.users.total ?? 0} color="bg-slate-400" />
+            <RoleBar label="Developers" value={stats?.users.tech ?? 0} total={stats?.users.total ?? 0} color="bg-sky-500" />
+            <RoleBar label="Admins" value={stats?.users.admin ?? 0} total={stats?.users.total ?? 0} color="bg-indigo-500" />
+          </div>
+        </ChartCard>
       </div>
-    </div>
+    </main>
   );
 }
 
@@ -78,33 +177,41 @@ function Kpi({
   label,
   value,
   loading,
-  href,
+  icon: Icon,
+  tint,
+  hint,
 }: {
   label: string;
-  value?: number;
+  value?: number | string;
   loading: boolean;
-  href?: string;
+  icon: typeof Users;
+  tint: string;
+  hint?: string;
 }) {
-  const body = (
-    <div className="card p-6 transition-shadow hover:shadow-md">
-      <div className="text-sm text-slate-500">{label}</div>
-      <div className="mt-1 text-4xl font-bold text-slate-900">{loading ? '—' : (value ?? 0)}</div>
-      {href && <div className="mt-2 text-xs text-indigo-600">Manage →</div>}
-    </div>
-  );
-  return href ? <Link href={href}>{body}</Link> : body;
-}
-
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="card p-6">
-      <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-      <div className="mt-4 space-y-3">{children}</div>
+    <div className="card p-5">
+      <div className="flex items-center justify-between">
+        <span className="text-sm text-slate-500">{label}</span>
+        <span className={`grid h-8 w-8 place-items-center rounded-lg ${tint}`}>
+          <Icon className="h-4 w-4" />
+        </span>
+      </div>
+      <div className="mt-2 text-3xl font-bold text-slate-900">{loading ? '—' : (value ?? 0)}</div>
+      {hint && <div className="mt-1 text-xs text-slate-400">{hint}</div>}
     </div>
   );
 }
 
-function Bar({
+function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="card p-5">
+      <h2 className="mb-3 text-sm font-semibold text-slate-900">{title}</h2>
+      {children}
+    </div>
+  );
+}
+
+function RoleBar({
   label,
   value,
   total,
@@ -122,7 +229,7 @@ function Bar({
         <span className="text-slate-600">{label}</span>
         <span className="font-medium text-slate-900">{value}</span>
       </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+      <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
       </div>
     </div>

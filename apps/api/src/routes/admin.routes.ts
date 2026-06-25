@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import {
+  getProjectDetail,
   getStats,
   listAllProjects,
   listUsers,
@@ -30,6 +31,7 @@ router.patch(
 );
 
 router.get('/projects', asyncHandler(listAllProjects));
+router.get('/projects/:id', asyncHandler(getProjectDetail));
 router.patch(
   '/projects/:id/status',
   validateBody(updateStatusSchema),

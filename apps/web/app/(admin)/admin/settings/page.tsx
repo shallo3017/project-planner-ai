@@ -6,7 +6,7 @@ export default function AdminSettingsPage() {
   const { user, logout } = useAuth();
 
   return (
-    <div className="animate-fade-up max-w-2xl">
+    <main className="mx-auto max-w-2xl animate-fade-up px-6 py-10">
       <h1 className="text-3xl font-bold tracking-tight text-slate-900">Settings</h1>
       <p className="mt-1 text-slate-600">Your account and platform configuration.</p>
 
@@ -36,7 +36,7 @@ export default function AdminSettingsPage() {
           features.
         </p>
       </section>
-    </div>
+    </main>
   );
 }
 

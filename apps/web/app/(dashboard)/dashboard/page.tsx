@@ -1,15 +1,18 @@
 'use client';
 
 import {
+  CalendarClock,
   Download,
   Eye,
   FolderOpen,
+  Lock,
   Plus,
   RefreshCw,
+  Search,
   Sparkles,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiDownload, apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 
@@ -19,6 +22,7 @@ interface Project {
   industry?: string;
   description?: string;
   status: 'draft' | 'in_review' | 'approved' | 'locked' | 'archived';
+  deadline?: string | null;
   createdAt: string;
 }
 
@@ -30,11 +34,17 @@ const STATUS_STYLES: Record<Project['status'], string> = {
   archived: 'bg-slate-100 text-slate-500 border-slate-200',
 };
 
+type SortKey = 'newest' | 'oldest' | 'deadline' | 'name';
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | Project['status']>('all');
+  const [sort, setSort] = useState<SortKey>('newest');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -53,6 +63,28 @@ export default function DashboardPage() {
     void load();
   }, [load]);
 
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    let list = projects.filter(
+      (p) =>
+        (statusFilter === 'all' || p.status === statusFilter) &&
+        (!q || p.name.toLowerCase().includes(q) || (p.industry ?? '').toLowerCase().includes(q)),
+    );
+    list = [...list].sort((a, b) => {
+      switch (sort) {
+        case 'oldest':
+          return +new Date(a.createdAt) - +new Date(b.createdAt);
+        case 'name':
+          return a.name.localeCompare(b.name);
+        case 'deadline':
+          return (a.deadline ? +new Date(a.deadline) : Infinity) - (b.deadline ? +new Date(b.deadline) : Infinity);
+        default:
+          return +new Date(b.createdAt) - +new Date(a.createdAt);
+      }
+    });
+    return list;
+  }, [projects, query, statusFilter, sort]);
+
   return (
     <main className="mx-auto max-w-6xl px-6 py-12">
       <div className="animate-fade-up flex flex-wrap items-end justify-between gap-4">
@@ -61,8 +93,7 @@ export default function DashboardPage() {
             Welcome back, {user?.fullName.split(' ')[0]} 👋
           </h1>
           <p className="mt-1 text-slate-600">
-            Your projects{' '}
-            <span className="text-slate-400">({projects.length})</span>
+            Your projects <span className="text-slate-400">({projects.length})</span>
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -75,11 +106,48 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Controls */}
+      {projects.length > 0 && (
+        <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              className="input pl-9"
+              placeholder="Search projects…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+          <select
+            className="input sm:w-44"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+          >
+            <option value="all">All statuses</option>
+            {(['draft', 'in_review', 'approved', 'locked', 'archived'] as const).map((s) => (
+              <option key={s} value={s}>
+                {s.replace('_', ' ')}
+              </option>
+            ))}
+          </select>
+          <select
+            className="input sm:w-40"
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortKey)}
+          >
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+            <option value="deadline">By deadline</option>
+            <option value="name">By name</option>
+          </select>
+        </div>
+      )}
+
       {error && (
         <div className="card mt-6 border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
       )}
 
-      <div className="mt-8">
+      <div className="mt-6">
         {loading ? (
           <div className="card grid place-items-center py-16 text-slate-500">Loading…</div>
         ) : projects.length === 0 ? (
@@ -90,9 +158,13 @@ export default function DashboardPage() {
               <Plus className="h-4 w-4" /> Create your first project
             </Link>
           </div>
+        ) : visible.length === 0 ? (
+          <div className="card grid place-items-center py-16 text-slate-500">
+            No projects match your filters.
+          </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {projects.map((p) => (
+            {visible.map((p) => (
               <ProjectCard key={p.id} project={p} />
             ))}
           </div>
@@ -160,11 +232,17 @@ function ProjectCard({ project }: { project: Project }) {
     year: 'numeric',
   });
   const hasDocs = docs.length > 0;
+  const finalised = project.status === 'locked';
 
   return (
     <div className="card animate-fade-up flex flex-col p-5 transition-shadow hover:shadow-md">
       <div className="flex items-start justify-between gap-3">
-        <h3 className="font-semibold text-slate-900">{project.name}</h3>
+        <Link
+          href={`/dashboard/projects/${project.id}`}
+          className="font-semibold text-slate-900 hover:text-indigo-700 hover:underline"
+        >
+          {project.name}
+        </Link>
         <span
           className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[project.status]}`}
         >
@@ -176,6 +254,16 @@ function ProjectCard({ project }: { project: Project }) {
       )}
       {project.description && (
         <p className="mt-2 line-clamp-2 text-sm text-slate-600">{project.description}</p>
+      )}
+      {project.deadline && (
+        <p className="mt-2 inline-flex w-fit items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+          <CalendarClock className="h-3.5 w-3.5" /> Due{' '}
+          {new Date(project.deadline).toLocaleDateString(undefined, {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          })}
+        </p>
       )}
 
       <div className="mt-auto pt-4">
@@ -207,6 +295,10 @@ function ProjectCard({ project }: { project: Project }) {
                 ) : null,
               )}
             </div>
+          ) : finalised ? (
+            <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">
+              <Lock className="h-3.5 w-3.5" /> Finalised
+            </span>
           ) : (
             <button onClick={generate} className="btn-primary px-3 py-1 text-xs">
               <Sparkles className="h-3.5 w-3.5" /> Generate
@@ -214,13 +306,18 @@ function ProjectCard({ project }: { project: Project }) {
           )}
         </div>
 
-        {hasDocs && !generating && (
+        {hasDocs && !generating && !finalised && (
           <button
             onClick={generate}
             className="mt-2 inline-flex items-center gap-1 text-xs text-slate-400 transition-colors hover:text-slate-600"
           >
             <RefreshCw className="h-3 w-3" /> Regenerate
           </button>
+        )}
+        {hasDocs && finalised && (
+          <p className="mt-2 inline-flex items-center gap-1 text-xs text-slate-400">
+            <Lock className="h-3 w-3" /> Finalised — regeneration disabled
+          </p>
         )}
         {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
       </div>

@@ -97,6 +97,38 @@ export async function me(req: Request, res: Response): Promise<void> {
   res.json({ user: user.toJSON() });
 }
 
+export const updateMeSchema = z.object({ fullName: z.string().min(1).max(150) });
+
+/** PATCH /api/auth/me — update the signed-in user's profile (name). */
+export async function updateMe(req: Request, res: Response): Promise<void> {
+  const { fullName } = req.body as z.infer<typeof updateMeSchema>;
+  const user = await UserModel.findByIdAndUpdate(
+    req.user!.sub,
+    { fullName },
+    { new: true, runValidators: true },
+  );
+  if (!user) throw new ApiError(404, 'User not found');
+  res.json({ user: user.toJSON() });
+}
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8).max(128),
+});
+
+/** PATCH /api/auth/me/password — verify current password, set a new one. */
+export async function changePassword(req: Request, res: Response): Promise<void> {
+  const { currentPassword, newPassword } = req.body as z.infer<typeof changePasswordSchema>;
+  const user = await UserModel.findById(req.user!.sub);
+  if (!user) throw new ApiError(404, 'User not found');
+  if (!(await bcrypt.compare(currentPassword, user.passwordHash))) {
+    throw new ApiError(401, 'Current password is incorrect');
+  }
+  user.passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+  await user.save();
+  res.json({ message: 'Password updated' });
+}
+
 /**
  * Exchanges a valid refresh cookie for a new access token, rotating the refresh
  * cookie in the process. No Authorization header needed — the cookie is auth.
