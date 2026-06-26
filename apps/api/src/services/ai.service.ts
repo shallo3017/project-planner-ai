@@ -32,6 +32,8 @@ function requirementsBrief(p: ProjectRequirements): string {
   return lines.join('\n');
 }
 
+import { DOC_TYPES, type DocType } from '../models/AiDocument';
+
 const PRD_SYSTEM = `You are a senior product manager. Write a clear, professional
 Product Requirements Document (PRD) in GitHub-flavored Markdown for the project
 described by the user. Use these sections, in order:
@@ -69,9 +71,73 @@ project/
 ## 8. Scalability & Risks
 Be concise and pragmatic. Prefer widely-used, cost-effective technologies.`;
 
-export interface GeneratedDocs {
-  prd: ChatResult;
-  trd: ChatResult;
+const BRD_SYSTEM = `You are a senior business analyst. Write a Business Requirements
+Document (BRD) in GitHub-flavored Markdown for the project described by the user.
+Use these sections, in order:
+# Business Requirements Document — <project name>
+## 1. Executive Summary
+## 2. Business Objectives
+## 3. Stakeholders
+## 4. Scope (In / Out)
+## 5. Functional Requirements  (numbered)
+## 6. Non-Functional Requirements
+## 7. Assumptions & Constraints
+## 8. Success Criteria & KPIs
+Focus on business value and outcomes, not implementation. Be concise and realistic.`;
+
+const SRS_SYSTEM = `You are a senior systems analyst. Write a Software Requirements
+Specification (SRS), IEEE-830 style, in GitHub-flavored Markdown for the project.
+Use these sections, in order:
+# Software Requirements Specification — <project name>
+## 1. Introduction (Purpose, Scope, Definitions)
+## 2. Overall Description
+## 3. Functional Requirements
+Use identifiers like FR-1, FR-2 with clear, testable statements.
+## 4. External Interface Requirements (UI, APIs, Hardware)
+## 5. Non-Functional Requirements (Performance, Security, Reliability, Usability)
+## 6. Acceptance Criteria
+Be precise and unambiguous.`;
+
+const API_DOCS_SYSTEM = `You are a senior backend engineer. Write REST API
+documentation in GitHub-flavored Markdown for the project described by the user.
+Use these sections:
+# API Documentation — <project name>
+## Overview (base URL, format)
+## Authentication
+## Endpoints
+For each resource, document the endpoints as a Markdown table with columns:
+Method | Path | Description | Auth. Then show 2-3 key endpoints with a JSON request
+and JSON response example in fenced \`\`\`json code blocks.
+## Error Handling (status codes table)
+Infer sensible resources/endpoints from the requirements. Be realistic.`;
+
+const DB_SCHEMA_SYSTEM = `You are a senior data engineer. Write the database schema
+in GitHub-flavored Markdown for the project described by the user.
+Use these sections:
+# Database Schema — <project name>
+## Overview (database type and rationale)
+## Entities
+For each table/collection: a heading, a one-line purpose, and a Markdown table of
+columns/fields (name, type, constraints/notes).
+## Relationships (describe foreign keys / references)
+## Entity Relationship Diagram
+Provide an ERD inside a fenced \`\`\`mermaid code block using \`erDiagram\` syntax.
+## Indexes
+Choose a database appropriate to the requirements. Be concrete.`;
+
+/** System prompt + display label for each document type. */
+export const DOC_META: Record<DocType, { label: string; system: string }> = {
+  prd: { label: 'PRD', system: PRD_SYSTEM },
+  trd: { label: 'TRD', system: TRD_SYSTEM },
+  brd: { label: 'BRD', system: BRD_SYSTEM },
+  srs: { label: 'SRS', system: SRS_SYSTEM },
+  api_docs: { label: 'API Docs', system: API_DOCS_SYSTEM },
+  db_schema: { label: 'DB Schema', system: DB_SCHEMA_SYSTEM },
+};
+
+export interface GeneratedDoc {
+  docType: DocType;
+  result: ChatResult;
 }
 
 // ── Chatbot intake ───────────────────────────────────────────────────────────
@@ -199,18 +265,24 @@ export async function suggestFeatures(project: ProjectRequirements): Promise<str
   return [];
 }
 
-/** Generate both the PRD and TRD from a project's requirements (in parallel). */
-export async function generatePrdTrd(project: ProjectRequirements): Promise<GeneratedDocs> {
-  const brief = requirementsBrief(project);
-  const [prd, trd] = await Promise.all([
-    chatCompletion([
-      { role: 'system', content: PRD_SYSTEM },
-      { role: 'user', content: brief },
-    ]),
-    chatCompletion([
-      { role: 'system', content: TRD_SYSTEM },
-      { role: 'user', content: brief },
-    ]),
+/** Generate a single document of the given type from a project's requirements. */
+export async function generateDoc(
+  docType: DocType,
+  project: ProjectRequirements,
+): Promise<ChatResult> {
+  return chatCompletion([
+    { role: 'system', content: DOC_META[docType].system },
+    { role: 'user', content: requirementsBrief(project) },
   ]);
-  return { prd, trd };
 }
+
+/** Generate several document types in parallel from a project's requirements. */
+export async function generateDocs(
+  project: ProjectRequirements,
+  docTypes: DocType[],
+): Promise<GeneratedDoc[]> {
+  const results = await Promise.all(docTypes.map((docType) => generateDoc(docType, project)));
+  return docTypes.map((docType, i) => ({ docType, result: results[i]! }));
+}
+
+export { DOC_TYPES };

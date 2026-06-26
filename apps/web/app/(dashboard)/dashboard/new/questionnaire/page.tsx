@@ -36,6 +36,7 @@ export default function QuestionnairePage() {
   const router = useRouter();
   const [bank, setBank] = useState<Record<string, Question[]>>(FALLBACK);
   const [industries, setIndustries] = useState<string[]>(Object.keys(FALLBACK));
+  const [common, setCommon] = useState<Question[]>([]);
   const [step, setStep] = useState(0);
 
   const [name, setName] = useState('');
@@ -52,20 +53,27 @@ export default function QuestionnairePage() {
   useEffect(() => {
     (async () => {
       try {
-        const data = await apiFetch<{ industries: string[]; byIndustry: Record<string, Question[]> }>(
-          '/questions',
-        );
+        const data = await apiFetch<{
+          industries: string[];
+          byIndustry: Record<string, Question[]>;
+          common?: Question[];
+        }>('/questions');
         if (data.industries.length > 0) {
           setBank(data.byIndustry);
           setIndustries(data.industries);
         }
+        if (data.common) setCommon(data.common);
       } catch {
         /* keep fallback */
       }
     })();
   }, []);
 
-  const allQuestions = useMemo(() => bank[industry] ?? [], [bank, industry]);
+  // Common questions (platform, auth, features…) come first, then industry ones.
+  const allQuestions = useMemo(
+    () => (industry ? [...common, ...(bank[industry] ?? [])] : []),
+    [common, bank, industry],
+  );
 
   // Conditional visibility: a question shows only when its dependency matches.
   const visibleQuestions = useMemo(

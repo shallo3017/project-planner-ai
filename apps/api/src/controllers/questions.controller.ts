@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { ApiError } from '../middleware/error.middleware';
-import { QuestionModel } from '../models/Question';
+import { COMMON_INDUSTRY, QuestionModel } from '../models/Question';
 
 // ── Validation ───────────────────────────────────────────────────────────────
 export const questionBodySchema = z.object({
@@ -30,16 +30,24 @@ function byOrder(a: { order: number; label: string }, b: { order: number; label:
 }
 
 // ── Public (any authenticated user) ──────────────────────────────────────────
-/** GET /api/questions — active questions grouped by industry, for the intake form. */
+/**
+ * GET /api/questions — active questions for the intake form. Common questions
+ * (shown for every industry) are returned separately from the per-industry sets.
+ */
 export async function listPublicQuestions(_req: Request, res: Response): Promise<void> {
   const questions = await QuestionModel.find({ isActive: true });
   const sorted = [...questions].sort(byOrder);
 
+  const common: unknown[] = [];
   const byIndustry: Record<string, unknown[]> = {};
   for (const q of sorted) {
-    (byIndustry[q.industry] ??= []).push(q.toJSON());
+    if (q.industry === COMMON_INDUSTRY) {
+      common.push(q.toJSON());
+    } else {
+      (byIndustry[q.industry] ??= []).push(q.toJSON());
+    }
   }
-  res.json({ industries: Object.keys(byIndustry).sort(), byIndustry });
+  res.json({ industries: Object.keys(byIndustry).sort(), byIndustry, common });
 }
 
 // ── Admin CRUD ───────────────────────────────────────────────────────────────

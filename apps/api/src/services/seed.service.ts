@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { AiDocumentModel } from '../models/AiDocument';
 import { ProjectModel } from '../models/Project';
-import { QuestionModel } from '../models/Question';
+import { COMMON_INDUSTRY, QuestionModel } from '../models/Question';
 import { UserModel } from '../models/User';
 
 const BCRYPT_ROUNDS = 12;
@@ -157,6 +157,12 @@ interface SeedQuestion {
 }
 
 const SEED_QUESTIONS: SeedQuestion[] = [
+  // Common — shown for every industry (platform, auth, features, integrations).
+  { industry: COMMON_INDUSTRY, key: 'platforms', label: 'Which platforms do you need?', type: 'multiselect', options: ['Web', 'Android', 'iOS', 'Desktop'], required: true, order: 1 },
+  { industry: COMMON_INDUSTRY, key: 'auth', label: 'How should users sign in?', type: 'multiselect', options: ['Email & password', 'Google', 'Apple', 'Phone OTP', 'SSO / SAML', 'Guest / no login'], order: 2 },
+  { industry: COMMON_INDUSTRY, key: 'core_features', label: 'Core features to include', type: 'multiselect', options: ['Payments', 'Chat / messaging', 'Notifications', 'Location / maps', 'Search', 'Analytics dashboard', 'File uploads', 'Admin panel', 'Reviews & ratings', 'Scheduling / calendar'], order: 3 },
+  { industry: COMMON_INDUSTRY, key: 'integrations', label: 'Third-party integrations', type: 'multiselect', options: ['Stripe', 'Razorpay', 'Twilio', 'SendGrid', 'Google Maps', 'AWS S3', 'Firebase', 'Slack', 'WhatsApp', 'OpenAI / LLM'], order: 4 },
+
   // Fintech
   { industry: 'Fintech', key: 'product', label: 'What financial product or service?', type: 'text', placeholder: 'e.g. digital wallet, lending, payments', required: true, order: 1 },
   { industry: 'Fintech', key: 'compliance', label: 'Key compliance needs', type: 'select', options: ['KYC/AML', 'PCI-DSS', 'PSD2 / Open Banking', 'Not sure'], order: 2 },

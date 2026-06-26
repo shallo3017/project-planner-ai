@@ -23,6 +23,10 @@ interface Question {
 
 const TYPES: QType[] = ['text', 'textarea', 'select', 'multiselect'];
 
+// Questions under this reserved industry are shown on every industry's form.
+const COMMON_INDUSTRY = '__all__';
+const industryLabel = (i: string) => (i === COMMON_INDUSTRY ? 'All industries (common)' : i);
+
 const EMPTY: Omit<Question, 'id'> = {
   industry: '',
   key: '',
@@ -103,7 +107,7 @@ export default function AdminQuestionsPage() {
           {Object.entries(byIndustry).map(([industry, list]) => (
             <div key={industry} className="card overflow-hidden">
               <div className="border-b border-slate-200 bg-slate-50 px-5 py-3 text-sm font-semibold text-slate-700">
-                {industry} <span className="text-slate-400">({list.length})</span>
+                {industryLabel(industry)} <span className="text-slate-400">({list.length})</span>
               </div>
               <ul className="divide-y divide-slate-100">
                 {list.map((q) => (
@@ -226,7 +230,14 @@ function QuestionEditor({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Industry</label>
-              <input className="input" value={form.industry} onChange={(e) => set('industry', e.target.value)} required />
+              <input
+                className="input"
+                value={form.industry}
+                onChange={(e) => set('industry', e.target.value)}
+                placeholder="e.g. Fintech, or __all__"
+                required
+              />
+              <p className="mt-1 text-xs text-slate-400">Use __all__ to show on every industry.</p>
             </div>
             <div>
               <label className="label">Key</label>

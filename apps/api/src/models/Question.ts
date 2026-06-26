@@ -1,5 +1,8 @@
 import { Schema, model, type InferSchemaType, type HydratedDocument } from 'mongoose';
 
+/** Reserved "industry" for questions shown on every industry's questionnaire. */
+export const COMMON_INDUSTRY = '__all__';
+
 /**
  * Industry-specific questionnaire questions, managed by admins. The guided
  * intake flow reads these (grouped by industry) instead of a hardcoded list.

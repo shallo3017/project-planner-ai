@@ -46,20 +46,42 @@ export async function createProject(req: Request, res: Response): Promise<void> 
 }
 
 export async function updateProject(req: Request, res: Response): Promise<void> {
+  const existing = await ProjectModel.findOne({ _id: req.params.id, ownerId: req.user!.sub });
+  if (!existing) throw new ApiError(404, 'Project not found');
+
+  // Finalised projects are frozen — the client cannot edit them anymore.
+  if (existing.status === 'locked') {
+    throw new ApiError(409, 'Project is finalised and locked — no further edits allowed');
+  }
+
   const project = await ProjectModel.findOneAndUpdate(
     { _id: req.params.id, ownerId: req.user!.sub },
     req.body as Partial<ProjectInput>,
     { new: true, runValidators: true },
   );
-  if (!project) throw new ApiError(404, 'Project not found');
   res.json({ project });
 }
 
 export async function deleteProject(req: Request, res: Response): Promise<void> {
-  const result = await ProjectModel.findOneAndDelete({
-    _id: req.params.id,
-    ownerId: req.user!.sub,
-  });
-  if (!result) throw new ApiError(404, 'Project not found');
+  const existing = await ProjectModel.findOne({ _id: req.params.id, ownerId: req.user!.sub });
+  if (!existing) throw new ApiError(404, 'Project not found');
+  if (existing.status === 'locked') {
+    throw new ApiError(409, 'Project is finalised and locked — it cannot be deleted');
+  }
+  await ProjectModel.deleteOne({ _id: existing._id });
   res.status(204).send();
+}
+
+/**
+ * POST /api/projects/:id/finalize — client sign-off. Locks the project so no
+ * further edits, deletes, or regenerations are possible (admin can unlock).
+ */
+export async function finalizeProject(req: Request, res: Response): Promise<void> {
+  const project = await ProjectModel.findOneAndUpdate(
+    { _id: req.params.id, ownerId: req.user!.sub },
+    { status: 'locked' },
+    { new: true },
+  );
+  if (!project) throw new ApiError(404, 'Project not found');
+  res.json({ project });
 }

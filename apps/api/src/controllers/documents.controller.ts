@@ -1,20 +1,18 @@
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { ApiError } from '../middleware/error.middleware';
-import { AiDocumentModel } from '../models/AiDocument';
+import { AiDocumentModel, DOC_TYPES, type DocType } from '../models/AiDocument';
 import { ProjectModel } from '../models/Project';
-
-type DocType = 'prd' | 'trd';
 
 export const updateDocumentSchema = z.object({
   content: z.string().min(1, 'content cannot be empty'),
 });
 
 function parseDocType(raw: string): DocType {
-  if (raw !== 'prd' && raw !== 'trd') {
-    throw new ApiError(400, "docType must be 'prd' or 'trd'");
+  if (!(DOC_TYPES as readonly string[]).includes(raw)) {
+    throw new ApiError(400, `docType must be one of: ${DOC_TYPES.join(', ')}`);
   }
-  return raw;
+  return raw as DocType;
 }
 
 /**
@@ -145,6 +143,10 @@ export async function updateDocument(req: Request, res: Response): Promise<void>
   const isOwner = String(project.ownerId) === sub;
   if (role !== 'admin' && !isOwner) {
     throw new ApiError(403, 'Only the project owner or an admin can edit documents');
+  }
+  // Finalised projects are frozen — their documents can't be edited.
+  if (project.status === 'locked' && role !== 'admin') {
+    throw new ApiError(409, 'Project is finalised and locked — documents cannot be edited');
   }
 
   document.content = content;

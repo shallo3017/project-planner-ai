@@ -94,6 +94,24 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
     }
   }
 
+  async function finalize() {
+    if (
+      !confirm(
+        'Finalise and lock this project? You will not be able to edit, delete, or regenerate it afterward.',
+      )
+    )
+      return;
+    try {
+      const { project: updated } = await apiFetch<{ project: Project }>(
+        `/projects/${params.id}/finalize`,
+        { method: 'POST' },
+      );
+      setProject(updated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Finalise failed');
+    }
+  }
+
   async function generate(features?: string[]) {
     setShowChecklist(false);
     setGenerating(true);
@@ -176,15 +194,29 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <button onClick={() => setEditing(true)} className="btn-ghost px-3 py-2 text-sm">
-                <Pencil className="h-4 w-4" /> Edit
-              </button>
-              <button
-                onClick={remove}
-                className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100"
-              >
-                <Trash2 className="h-4 w-4" /> Delete
-              </button>
+              {project.status === 'locked' ? (
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700">
+                  <Lock className="h-4 w-4" /> Finalised &amp; locked
+                </span>
+              ) : (
+                <>
+                  <button onClick={() => setEditing(true)} className="btn-ghost px-3 py-2 text-sm">
+                    <Pencil className="h-4 w-4" /> Edit
+                  </button>
+                  <button
+                    onClick={finalize}
+                    className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100"
+                  >
+                    <Lock className="h-4 w-4" /> Finalise &amp; lock
+                  </button>
+                  <button
+                    onClick={remove}
+                    className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100"
+                  >
+                    <Trash2 className="h-4 w-4" /> Delete
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -253,8 +285,10 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
             )
           ) : (
             <>
-              {/* Set a deadline before approving the documents. */}
-              <DeadlineSetter project={project} onSaved={updateDeadline} />
+              {/* Set a deadline before approving the documents (not once locked). */}
+              {project.status !== 'locked' && (
+                <DeadlineSetter project={project} onSaved={updateDeadline} />
+              )}
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 {docs.map((d) => (
                 <div key={d.id} className="card flex items-center justify-between p-4">

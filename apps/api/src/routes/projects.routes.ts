@@ -3,6 +3,7 @@ import {
   createProject,
   createProjectSchema,
   deleteProject,
+  finalizeProject,
   getProject,
   listProjects,
   updateProject,
@@ -22,6 +23,7 @@ router.get('/', asyncHandler(listProjects));
 router.post('/', validateBody(createProjectSchema), asyncHandler(createProject));
 router.get('/:id', asyncHandler(getProject));
 router.patch('/:id', validateBody(updateProjectSchema), asyncHandler(updateProject));
+router.post('/:id/finalize', asyncHandler(finalizeProject));
 router.delete('/:id', asyncHandler(deleteProject));
 
 export default router;

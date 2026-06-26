@@ -43,6 +43,12 @@ const CLIENT_LINKS: NavItem[] = [
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },
 ];
 
+const TECH_LINKS: NavItem[] = [
+  { href: '/tech/dashboard', label: 'Workspace', icon: LayoutDashboard },
+  { href: '/dashboard/documents', label: 'Documents', icon: FileText },
+  { href: '/dashboard/settings', label: 'Settings', icon: Settings },
+];
+
 /** Industry-style app shell: persistent sidebar that collapses to an icon rail
  *  on desktop, and a slide-over drawer on mobile. One hamburger drives both. */
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -119,7 +125,8 @@ function Sidebar({
 }) {
   const { user } = useAuth();
   const pathname = usePathname();
-  const links = user?.role === 'admin' ? ADMIN_LINKS : CLIENT_LINKS;
+  const links =
+    user?.role === 'admin' ? ADMIN_LINKS : user?.role === 'tech' ? TECH_LINKS : CLIENT_LINKS;
 
   return (
     <aside

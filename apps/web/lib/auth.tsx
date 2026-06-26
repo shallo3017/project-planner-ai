@@ -117,5 +117,7 @@ export function useAuth(): AuthContextValue {
 
 /** Where a user should land after auth, based on their role. */
 export function homePathForRole(role: User['role']): string {
-  return role === 'admin' ? '/admin/dashboard' : '/dashboard';
+  if (role === 'admin') return '/admin/dashboard';
+  if (role === 'tech') return '/tech/dashboard';
+  return '/dashboard';
 }
