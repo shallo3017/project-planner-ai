@@ -252,21 +252,46 @@ export async function suggestFeatures(project: ProjectRequirements): Promise<str
   return [];
 }
 
+/**
+ * Generate one document. When `baseContent` is provided (regenerating an
+ * existing/edited doc), the model REVISES it — preserving the author's manual
+ * edits — instead of writing a fresh document from scratch.
+ */
 export async function generateDoc(
   docType: DocType,
   project: ProjectRequirements,
+  baseContent?: string,
 ): Promise<ChatResult> {
+  const userPrompt =
+    baseContent && baseContent.trim()
+      ? `Below is the current ${DOC_META[docType].label} which the author has manually edited.
+Revise and improve it to satisfy the requirements, but PRESERVE the author's edits,
+wording, and structure wherever possible (do not discard their changes). Return the
+COMPLETE updated document in the same GitHub-flavored Markdown format.
+
+=== CURRENT DOCUMENT ===
+${baseContent}
+
+=== PROJECT REQUIREMENTS ===
+${requirementsBrief(project)}`
+      : requirementsBrief(project);
+
   return chatCompletion([
     { role: 'system', content: DOC_META[docType].system },
-    { role: 'user', content: requirementsBrief(project) },
+    { role: 'user', content: userPrompt },
   ]);
 }
 
 export async function generateDocs(
   project: ProjectRequirements,
   docTypes: DocType[],
+  baseContent?: string,
 ): Promise<GeneratedDoc[]> {
-  const results = await Promise.all(docTypes.map((docType) => generateDoc(docType, project)));
+  const results = await Promise.all(
+    docTypes.map((docType) =>
+      generateDoc(docType, project, docTypes.length === 1 ? baseContent : undefined),
+    ),
+  );
   return docTypes.map((docType, i) => ({ docType, result: results[i]! }));
 }
 

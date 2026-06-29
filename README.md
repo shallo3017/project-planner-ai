@@ -25,38 +25,34 @@ Turn project requirements into professional planning documents — **PRD, TRD, B
 - **Auth:** Custom JWT (access token + HTTP-only refresh cookie) + Google OAuth (ID-token flow)
 - **UI:** Lucide icons, Recharts (admin analytics), react-markdown (doc viewer)
 
-## 📁 Structure (npm-workspaces monorepo, single app)
+## 📁 Structure (single Next.js app)
 
 ```
-project-planner-ai/
-└─ apps/
-   └─ web/
-      ├─ app/
-      │  ├─ (auth)/ (dashboard)/ (tech)/ (admin)/   route groups + guards
-      │  ├─ page.tsx                                guest chatbot landing
-      │  └─ api/                                    backend route handlers
-      │     ├─ auth/ projects/ documents/ ai/
-      │     ├─ public/ questions/ tech/ admin/
-      ├─ components/                                UI (app-shell, guest-chat, admin/…)
-      ├─ lib/                                       api client + auth context
-      └─ server/                                    backend core
-         ├─ db.ts env.ts jwt.ts auth.ts http.ts rateLimit.ts schemas.ts
-         ├─ models/        User, Project, AiDocument, Question, Task, Milestone
-         └─ services/      groq.service, ai.service, seed.service
+roadmap-ai/                                   ← repo root = the app
+├─ app/
+│  ├─ (auth)/ (dashboard)/ (tech)/ (admin)/   route groups + guards
+│  ├─ page.tsx                                guest chatbot landing
+│  └─ api/                                    backend route handlers
+│     ├─ auth/ projects/ documents/ ai/
+│     └─ public/ questions/ tech/ admin/
+├─ components/                                UI (app-shell, guest-chat, admin/…)
+├─ lib/                                       api client + auth context
+└─ server/                                    backend core
+   ├─ db.ts env.ts jwt.ts auth.ts http.ts rateLimit.ts schemas.ts
+   ├─ models/        User, Project, AiDocument, Question, Task, Milestone
+   └─ services/      groq.service, ai.service, seed.service
 ```
 
 ---
 
 ## ⚙️ Setup
 
-> npm-workspaces monorepo. Run everything from the repo root.
-
-1. **Install**
+1. **Install** (from the repo root)
    ```bash
    npm install
    ```
 
-2. **Environment** — create `apps/web/.env.local`:
+2. **Environment** — create `.env.local` in the repo root:
    ```bash
    # Public (browser)
    NEXT_PUBLIC_API_URL=                       # blank → same-origin /api
@@ -108,7 +104,7 @@ Seeded on first DB connect:
 
 ## ☁️ Deploy (Vercel — single app)
 
-1. Import the repo on Vercel; set **Root Directory** to `apps/web`.
+1. Import the repo on Vercel — **Root Directory = repo root** (default; no monorepo settings needed).
 2. Add the env vars from above in the Vercel dashboard (use the `mongodb+srv://` URI — Vercel resolves SRV fine).
 3. Deploy. The frontend and all `/api` routes ship together.
 

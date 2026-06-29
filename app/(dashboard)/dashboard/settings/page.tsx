@@ -5,16 +5,44 @@ import { useState } from 'react';
 import { apiFetch } from '@/lib/api';
 import { useAuth, type User } from '@/lib/auth';
 
+function initials(name?: string): string {
+  if (!name) return '?';
+  return name
+    .split(' ')
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+}
+
 export default function ClientSettingsPage() {
   const { user, updateUser } = useAuth();
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-12">
-      <h1 className="text-3xl font-bold tracking-tight text-slate-900">Settings</h1>
-      <p className="mt-1 text-slate-600">Manage your account.</p>
+    <main className="animate-fade-up px-6 py-10 lg:px-8">
+      {/* Header */}
+      <div className="flex flex-wrap items-center gap-4">
+        <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-lg font-semibold text-white">
+          {initials(user?.fullName)}
+        </span>
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            {user?.fullName || 'Settings'}
+          </h1>
+          <p className="truncate text-sm text-slate-500">{user?.email}</p>
+        </div>
+        {user?.role && (
+          <span className="ml-auto rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium capitalize text-indigo-700">
+            {user.role}
+          </span>
+        )}
+      </div>
 
-      <ProfileSection user={user} onUpdated={updateUser} />
-      <PasswordSection />
+      <div className="mt-8 grid items-start gap-6 lg:grid-cols-2">
+        <ProfileSection user={user} onUpdated={updateUser} />
+        <PasswordSection />
+      </div>
     </main>
   );
 }
@@ -43,8 +71,9 @@ function ProfileSection({ user, onUpdated }: { user: User | null; onUpdated: (u:
   }
 
   return (
-    <form onSubmit={save} className="card mt-8 p-6">
+    <form onSubmit={save} className="card p-6">
       <h2 className="text-sm font-semibold text-slate-900">Profile</h2>
+      <p className="mt-0.5 text-xs text-slate-500">Update your display name.</p>
       <div className="mt-4 space-y-4">
         <div>
           <label className="label">Full name</label>
@@ -54,9 +83,7 @@ function ProfileSection({ user, onUpdated }: { user: User | null; onUpdated: (u:
           <label className="label">Email</label>
           <input className="input bg-slate-50 text-slate-500" value={user?.email ?? ''} disabled />
         </div>
-        {msg && (
-          <p className={`text-sm ${msg.ok ? 'text-emerald-700' : 'text-red-600'}`}>{msg.text}</p>
-        )}
+        {msg && <p className={`text-sm ${msg.ok ? 'text-emerald-700' : 'text-red-600'}`}>{msg.text}</p>}
         <button type="submit" className="btn-primary px-4 py-2" disabled={saving}>
           <Check className="h-4 w-4" /> {saving ? 'Saving…' : 'Save profile'}
         </button>
@@ -97,8 +124,9 @@ function PasswordSection() {
   }
 
   return (
-    <form onSubmit={save} className="card mt-6 p-6">
+    <form onSubmit={save} className="card p-6">
       <h2 className="text-sm font-semibold text-slate-900">Change password</h2>
+      <p className="mt-0.5 text-xs text-slate-500">Use at least 8 characters.</p>
       <div className="mt-4 space-y-4">
         <div>
           <label className="label">Current password</label>
@@ -134,9 +162,7 @@ function PasswordSection() {
             />
           </div>
         </div>
-        {msg && (
-          <p className={`text-sm ${msg.ok ? 'text-emerald-700' : 'text-red-600'}`}>{msg.text}</p>
-        )}
+        {msg && <p className={`text-sm ${msg.ok ? 'text-emerald-700' : 'text-red-600'}`}>{msg.text}</p>}
         <button type="submit" className="btn-primary px-4 py-2" disabled={saving}>
           <Check className="h-4 w-4" /> {saving ? 'Updating…' : 'Update password'}
         </button>

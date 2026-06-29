@@ -109,9 +109,12 @@ export default function DocumentsPage({ params }: { params: { projectId: string 
     setGenerating(docType);
     setError(null);
     try {
+      // Regenerating an existing doc revises from its current content so the
+      // author's manual edits are respected (not overwritten from scratch).
+      const existing = docs.find((d) => d.docType === docType);
       await apiFetch(`/ai/generate/${params.projectId}`, {
         method: 'POST',
-        body: JSON.stringify({ docTypes: [docType] }),
+        body: JSON.stringify({ docTypes: [docType], baseContent: existing?.content }),
       });
       await load();
       setActive(docType);
@@ -242,12 +245,23 @@ export default function DocumentsPage({ params }: { params: { projectId: string 
       {fetching ? (
         <div className="mt-10 text-slate-500">Loading…</div>
       ) : editing && current ? (
-        <textarea
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          className="input mt-6 min-h-[60vh] resize-y font-mono text-sm leading-relaxed"
-          spellCheck={false}
-        />
+        <div className="mt-4">
+          <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-slate-500">
+            <Pencil className="h-3.5 w-3.5" /> Editing {DOC_LABEL[active]} · Markdown — live preview on the right
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              className="input min-h-[65vh] resize-y rounded-xl font-mono text-sm leading-relaxed"
+              spellCheck={false}
+              placeholder="Write Markdown…"
+            />
+            <article className="prose prose-slate min-h-[65vh] max-w-none overflow-auto rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+              <Markdown remarkPlugins={[remarkGfm]}>{draft || '_Nothing to preview yet._'}</Markdown>
+            </article>
+          </div>
+        </div>
       ) : current ? (
         <article className="print-area prose prose-slate mt-6 max-w-none rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
           <Markdown remarkPlugins={[remarkGfm]}>{current.content}</Markdown>

@@ -15,13 +15,15 @@ export const maxDuration = 60; // AI generation can take a while
 const generateSchema = z.object({
   features: z.array(z.string().min(1).max(120)).max(30).optional(),
   docTypes: z.array(z.enum(DOC_TYPES)).min(1).max(DOC_TYPES.length).optional(),
+  // When regenerating a single edited doc, its current content to revise from.
+  baseContent: z.string().max(60000).optional(),
 });
 const DEFAULT_DOC_TYPES: DocType[] = ['prd', 'trd'];
 
 export const POST = handler<{ params: { projectId: string } }>(async (req, { params }) => {
   await connectDB();
   const { role, sub } = requireAuth(req);
-  const { features, docTypes } = await parseBody(req, generateSchema);
+  const { features, docTypes, baseContent } = await parseBody(req, generateSchema);
 
   const project = await ProjectModel.findById(params.projectId);
   if (!project) throw new ApiError(404, 'Project not found');
@@ -44,6 +46,7 @@ export const POST = handler<{ params: { projectId: string } }>(async (req, { par
       features,
     },
     types,
+    baseContent,
   );
 
   const documents = await Promise.all(

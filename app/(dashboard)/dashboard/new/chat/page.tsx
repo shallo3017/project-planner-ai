@@ -151,28 +151,37 @@ export default function ChatIntakePage() {
 
       {/* Conversation */}
       <div className="flex-1 overflow-y-auto px-4 lg:px-8">
-        <div className="mx-auto max-w-3xl space-y-5 py-6">
-          {messages.map((m, i) => (
-            <Message key={i} role={m.role} content={m.content} userName={user?.fullName} />
-          ))}
-          {sending && <Typing />}
-
-          {/* First-run suggestion chips */}
-          {!hasUserTurn && (
-            <div className="flex flex-wrap gap-2 pl-11">
+        {hasUserTurn ? (
+          <div className="mx-auto max-w-3xl space-y-5 py-6">
+            {messages.map((m, i) => (
+              <Message key={i} role={m.role} content={m.content} userName={user?.fullName} />
+            ))}
+            {sending && <Typing />}
+            <div ref={endRef} />
+          </div>
+        ) : (
+          /* Empty state — a centered welcome so the space feels intentional. */
+          <div className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center py-10 text-center">
+            <span className="grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md">
+              <Sparkles className="h-8 w-8" />
+            </span>
+            <h2 className="mt-5 text-2xl font-bold tracking-tight text-slate-900">
+              Let&apos;s scope your project
+            </h2>
+            <p className="mt-2 max-w-md text-sm leading-relaxed text-slate-500">{GREETING.content}</p>
+            <div className="mt-7 flex flex-wrap justify-center gap-2">
               {CHIPS.map((c) => (
                 <button
                   key={c}
                   onClick={() => void send(c)}
-                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm transition-colors hover:border-indigo-300 hover:text-indigo-700"
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm transition-colors hover:border-indigo-300 hover:text-indigo-700"
                 >
                   {c}
                 </button>
               ))}
             </div>
-          )}
-          <div ref={endRef} />
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Composer */}
