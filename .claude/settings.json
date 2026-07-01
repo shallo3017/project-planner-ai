@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C \"d:\\\\project-planner-ai\" log --format=\"%h %an <%ae> %s\" --all)"
+    ]
+  }
+}
