@@ -6,7 +6,8 @@ import { env } from '@/server/env';
 import { ApiError, handler, parseBody } from '@/server/http';
 import { AiDocumentModel, DOC_TYPES, type DocType } from '@/server/models/AiDocument';
 import { ProjectModel } from '@/server/models/Project';
-import { generateDocs } from '@/server/services/ai.service';
+import { TemplateModel } from '@/server/models/Template';
+import { generateDocs, type DocTemplate } from '@/server/services/ai.service';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -36,6 +37,36 @@ export const POST = handler<{ params: { projectId: string } }>(async (req, { par
   }
 
   const types = docTypes && docTypes.length > 0 ? docTypes : DEFAULT_DOC_TYPES;
+
+  // Non-PRD documents are grounded in the PRD. If this request isn't (re)generating
+  // the PRD itself, feed in the one already stored for the project so the new doc
+  // stays consistent with it.
+  let existingPrd: string | undefined;
+  if (!types.includes('prd')) {
+    const prdDoc = await AiDocumentModel.findOne({ projectId: project.id, docType: 'prd' })
+      .select('content')
+      .lean();
+    existingPrd = prdDoc?.content;
+  }
+
+  // Admin-authored templates decide the shape of each document. Newest active
+  // template per doc type wins; doc types without one use the built-in prompt.
+  const activeTemplates = await TemplateModel.find({ docType: { $in: types }, isActive: true })
+    .sort({ updatedAt: -1 })
+    .lean();
+  const templates: Partial<Record<DocType, DocTemplate>> = {};
+  for (const t of activeTemplates) {
+    const type = t.docType as DocType;
+    if (!templates[type]) {
+      templates[type] = {
+        name: t.name,
+        role: t.role,
+        sections: t.sections,
+        instructions: t.instructions,
+      };
+    }
+  }
+
   const generated = await generateDocs(
     {
       name: project.name,
@@ -46,7 +77,7 @@ export const POST = handler<{ params: { projectId: string } }>(async (req, { par
       features,
     },
     types,
-    baseContent,
+    { baseContent, existingPrd, templates },
   );
 
   const documents = await Promise.all(

@@ -129,7 +129,16 @@ export function UserManager({
 
       <div className="card mt-6 overflow-hidden">
         {loading ? (
-          <div className="grid place-items-center py-16 text-slate-500">Loading…</div>
+          <div className="divide-y divide-slate-100">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 px-5 py-4">
+                <div className="skeleton h-8 w-8 rounded-full" />
+                <div className="skeleton h-4 flex-1" />
+                <div className="skeleton h-6 w-20 rounded-full" />
+                <div className="skeleton h-7 w-16 rounded-lg" />
+              </div>
+            ))}
+          </div>
         ) : visible.length === 0 ? (
           <div className="grid place-items-center py-16 text-slate-500">
             No {title.toLowerCase()} yet.

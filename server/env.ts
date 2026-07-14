@@ -17,8 +17,15 @@ export const env = {
   JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN ?? '7d',
 
   GROQ_API_KEY: process.env.GROQ_API_KEY,
+  // Quality model — long-form document generation.
   GROQ_MODEL: process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile',
+  // Fast model — short, latency-sensitive work (chat turns, JSON extraction).
+  GROQ_FAST_MODEL: process.env.GROQ_FAST_MODEL ?? 'llama-3.1-8b-instant',
   GROQ_MAX_TOKENS: Number(process.env.GROQ_MAX_TOKENS ?? 4096),
+  // Run the critic → revise pass after drafting a document. Costs one cheap
+  // critique call (+ one revision only when issues are found). Set 'false' to
+  // fall back to single-shot generation (the eval harness toggles this).
+  AI_REFINE: (process.env.AI_REFINE ?? 'true') as 'true' | 'false',
   // Whisper model used for voice-to-text transcription.
   GROQ_STT_MODEL: process.env.GROQ_STT_MODEL ?? 'whisper-large-v3-turbo',
 

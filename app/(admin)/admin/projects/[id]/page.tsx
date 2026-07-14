@@ -4,6 +4,7 @@ import { ArrowLeft, Download, Eye, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import { Spinner } from '@/components/loader';
 import { apiDownload, apiFetch } from '@/lib/api';
 
 type Status = 'draft' | 'in_review' | 'approved' | 'locked' | 'archived';
@@ -116,7 +117,9 @@ export default function AdminProjectDetailPage({ params }: { params: { id: strin
       )}
 
       {loading ? (
-        <div className="mt-10 text-slate-500">Loading…</div>
+        <div className="mt-10 inline-flex items-center gap-2 text-slate-500">
+          <Spinner /> Loading project…
+        </div>
       ) : !project ? (
         <div className="mt-10 text-slate-500">Project not found.</div>
       ) : (

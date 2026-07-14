@@ -21,6 +21,9 @@ CREDENTIALS.md
 # Uploads (local object storage in MVP)
 uploads/
 
+# Generated eval reports (the harness itself is tracked, its output isn't)
+evals/reports/
+
 # Logs
 *.log
 npm-debug.log*

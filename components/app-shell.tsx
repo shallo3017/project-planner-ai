@@ -5,6 +5,7 @@ import {
   FileText,
   FolderKanban,
   LayoutDashboard,
+  LayoutTemplate,
   ListChecks,
   Menu,
   Plus,
@@ -34,6 +35,7 @@ const ADMIN_LINKS: NavItem[] = [
   { href: '/admin/developers', label: 'Developers', icon: Code2 },
   { href: '/admin/projects', label: 'Projects', icon: FolderKanban },
   { href: '/admin/questions', label: 'Questionnaire', icon: ListChecks },
+  { href: '/admin/templates', label: 'Templates', icon: LayoutTemplate },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -44,6 +46,7 @@ const CLIENT_LINKS: NavItem[] = [
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },
 ];
 
+// Tech reviewers work on approved projects — they never create them.
 const TECH_LINKS: NavItem[] = [
   { href: '/tech/dashboard', label: 'Workspace', icon: LayoutDashboard },
   { href: '/dashboard/documents', label: 'Documents', icon: FileText },

@@ -97,7 +97,14 @@ export default function AdminQuestionsPage() {
       )}
 
       {loading ? (
-        <div className="card mt-6 grid place-items-center py-16 text-slate-500">Loading…</div>
+        <div className="mt-6 space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="card space-y-2 p-5">
+              <div className="skeleton h-4 w-1/3" />
+              <div className="skeleton h-3 w-1/2" />
+            </div>
+          ))}
+        </div>
       ) : questions.length === 0 ? (
         <div className="card mt-6 grid place-items-center py-16 text-slate-500">
           No questions yet — add one.

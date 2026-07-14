@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ProjectStatusPill, type ProjectStatus } from '@/components/status-pill';
 import { apiDownload, apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 
@@ -22,18 +23,10 @@ interface Project {
   name: string;
   industry?: string;
   description?: string;
-  status: 'draft' | 'in_review' | 'approved' | 'locked' | 'archived';
+  status: ProjectStatus;
   deadline?: string | null;
   createdAt: string;
 }
-
-const STATUS_STYLES: Record<Project['status'], string> = {
-  draft: 'bg-slate-100 text-slate-600 border-slate-200',
-  in_review: 'bg-amber-50 text-amber-700 border-amber-200',
-  approved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  locked: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-  archived: 'bg-slate-100 text-slate-500 border-slate-200',
-};
 
 type SortKey = 'newest' | 'oldest' | 'deadline' | 'name';
 
@@ -156,7 +149,23 @@ export default function DashboardPage() {
 
       <div className="mt-6">
         {loading ? (
-          <div className="card grid place-items-center py-16 text-slate-500">Loading…</div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="card flex flex-col gap-3 p-5">
+                <div className="flex items-center justify-between">
+                  <div className="skeleton h-4 w-2/5" />
+                  <div className="skeleton h-5 w-14 rounded-full" />
+                </div>
+                <div className="skeleton h-3 w-1/4" />
+                <div className="skeleton h-3 w-full" />
+                <div className="skeleton h-3 w-3/4" />
+                <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
+                  <div className="skeleton h-3 w-24" />
+                  <div className="skeleton h-6 w-20 rounded-lg" />
+                </div>
+              </div>
+            ))}
+          </div>
         ) : projects.length === 0 ? (
           <div className="card grid place-items-center gap-3 py-20 text-center">
             <FolderOpen className="h-10 w-10 text-slate-300" />
@@ -228,38 +237,47 @@ function ProjectCard({ project }: { project: Project }) {
   const finalised = project.status === 'locked';
 
   return (
-    <div className="card animate-fade-up flex flex-col p-5 transition-shadow hover:shadow-md">
+    <div className="card card-interactive animate-fade-up relative flex flex-col p-5">
       <div className="flex items-start justify-between gap-3">
         <Link
           href={`/dashboard/projects/${project.id}`}
-          className="font-semibold text-slate-900 hover:text-indigo-700 hover:underline"
+          className="font-semibold text-slate-900 hover:text-indigo-700"
         >
+          {/* Stretched hit area — the whole card is the link target. */}
+          <span className="absolute inset-0 rounded-xl" aria-hidden />
           {project.name}
         </Link>
-        <span
-          className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[project.status]}`}
-        >
-          {project.status.replace('_', ' ')}
-        </span>
+        <ProjectStatusPill status={project.status} />
       </div>
-      {project.industry && (
-        <p className="mt-1 text-xs uppercase tracking-wide text-indigo-600">{project.industry}</p>
-      )}
-      {project.description && (
-        <p className="mt-2 line-clamp-2 text-sm text-slate-600">{project.description}</p>
-      )}
-      {project.deadline && (
-        <p className="mt-2 inline-flex w-fit items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
-          <CalendarClock className="h-3.5 w-3.5" /> Due{' '}
-          {new Date(project.deadline).toLocaleDateString(undefined, {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-          })}
-        </p>
-      )}
 
-      <div className="mt-auto pt-4">
+      <p className="mt-1 text-xs uppercase tracking-wide text-indigo-600">
+        {project.industry || '—'}
+      </p>
+
+      {/* Fixed slots below, so cards keep the same rhythm whether or not a
+          project has a description or a deadline (no ragged voids). */}
+      <p className="mt-2 line-clamp-2 min-h-[2.5rem] text-sm text-slate-600">
+        {project.description || <span className="text-slate-400">No description yet.</span>}
+      </p>
+
+      <div className="mt-2 min-h-[1.5rem]">
+        {project.deadline ? (
+          <span className="inline-flex w-fit items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+            <CalendarClock className="h-3.5 w-3.5" /> Due{' '}
+            {new Date(project.deadline).toLocaleDateString(undefined, {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })}
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+            <CalendarClock className="h-3.5 w-3.5" /> No deadline
+          </span>
+        )}
+      </div>
+
+      <div className="relative mt-auto pt-4">
         <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
           <span className="text-xs text-slate-500">Created {created}</span>
 
@@ -289,8 +307,9 @@ function ProjectCard({ project }: { project: Project }) {
               <Lock className="h-3.5 w-3.5" /> Finalised
             </span>
           ) : (
-            <Link href={`/dashboard/projects/${project.id}`} className="btn-primary px-3 py-1 text-xs">
-              <Sparkles className="h-3.5 w-3.5" /> Generate
+            /* Secondary, not filled — the page's one filled button is "New Project". */
+            <Link href={`/dashboard/projects/${project.id}`} className="btn-ghost px-3 py-1 text-xs">
+              <Sparkles className="h-3.5 w-3.5 text-indigo-600" /> Generate
             </Link>
           )}
         </div>

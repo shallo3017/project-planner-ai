@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { Spinner } from '@/components/loader';
 import { apiDownload, apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 
@@ -243,7 +244,9 @@ export default function DocumentsPage({ params }: { params: { projectId: string 
 
       {/* Body */}
       {fetching ? (
-        <div className="mt-10 text-slate-500">Loading…</div>
+        <div className="mt-10 inline-flex items-center gap-2 text-slate-500">
+          <Spinner /> Loading documents…
+        </div>
       ) : editing && current ? (
         <div className="mt-4">
           <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-slate-500">

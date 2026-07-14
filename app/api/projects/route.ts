@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/server/auth';
+import { requireAuth, requireRole } from '@/server/auth';
 import { connectDB } from '@/server/db';
 import { handler, parseBody } from '@/server/http';
 import { ProjectModel } from '@/server/models/Project';
@@ -17,7 +17,9 @@ export const GET = handler(async (req) => {
 
 export const POST = handler(async (req) => {
   await connectDB();
-  const { sub } = requireAuth(req);
+  // Tech reviewers work on approved projects — they never create them. Enforced
+  // here (not just by hiding the nav) so the rule can't be bypassed via the API.
+  const { sub } = requireRole(req, 'client', 'admin');
   const body = await parseBody(req, createProjectSchema);
   const project = await ProjectModel.create({ ...body, ownerId: sub });
   return NextResponse.json({ project }, { status: 201 });

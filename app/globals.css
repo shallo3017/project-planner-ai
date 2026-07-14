@@ -4,34 +4,115 @@
 
 :root {
   color-scheme: light;
+
+  /* ── Chart palette ────────────────────────────────────────────────────────
+     Categorical slots in FIXED order (never cycled/reordered — the order is the
+     colorblind-safety mechanism). Validated on the white card surface: worst
+     adjacent CVD ΔE 47.2, all-pairs 12.9. Slots 3/4/6 sit below 3:1 on white,
+     so any chart using them must ship visible labels (the pie's legend does). */
+  --chart-1: #c4603c; /* brand terracotta */
+  --chart-2: #2a78d6; /* blue */
+  --chart-3: #eda100; /* gold */
+  --chart-4: #1baf7a; /* aqua */
+  --chart-5: #4a3aa7; /* violet */
+  --chart-6: #e87ba4; /* magenta */
+  --chart-axis: #837768; /* muted axis/tick ink */
+  --chart-grid: #e9dfd3;
+  --chart-cursor: #f5eee6; /* bar hover wash */
 }
 
 .dark {
   color-scheme: dark;
-  /* Semantic dark palette — tweak here to retune the whole dark theme. */
-  --bg: #0a0e1a; /* page background */
-  --surface: #141a29; /* cards, popovers, "white" surfaces */
-  --surface-2: #1c2333; /* inputs, subtle insets, hover */
-  --surface-3: #232c40; /* stronger hover / avatars */
-  --border: #2a3447;
-  --text-strong: #f1f5f9; /* headings (slate-900/800) */
-  --text: #cbd5e1; /* body (slate-700/600) */
-  --text-muted: #8a97ab; /* secondary (slate-500/400) */
-  --text-faint: #5b6679; /* icons (slate-300) */
+  /* Semantic dark palette — warm near-black to match the brand. */
+  --bg: #0f0c0a; /* page background */
+  --surface: #1a1512; /* cards, popovers, "white" surfaces */
+  --surface-2: #241d18; /* inputs, subtle insets, hover */
+  --surface-3: #2f2620; /* stronger hover / avatars */
+  --border: #3a2f27;
+  --text-strong: #f7f3ef; /* headings (slate-900/800) */
+  --text: #d8cec5; /* body (slate-700/600) */
+  --text-muted: #a2958a; /* secondary (slate-500/400) */
+  --text-faint: #6d6158; /* icons (slate-300) */
+
+  /* Chart palette — the same six hues re-stepped for the dark card surface
+     (#1a1512) and validated there: all slots ≥3:1, worst adjacent CVD ΔE 41.3. */
+  --chart-1: #cf6b45;
+  --chart-2: #3987e5;
+  --chart-3: #c98500;
+  --chart-4: #199e70;
+  --chart-5: #9085e9;
+  --chart-6: #d55181;
+  --chart-axis: #a2958a;
+  --chart-grid: #3a2f27;
+  --chart-cursor: #241d18;
 }
 
 body {
   @apply bg-slate-50 text-slate-700 antialiased;
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
 }
 .dark body {
   background-color: var(--bg);
   color: var(--text);
 }
 
+/* Headings wear the display face — tighter tracking + weight gives them presence. */
+h1,
+h2,
+h3 {
+  font-family: var(--font-display), var(--font-sans), sans-serif;
+  letter-spacing: -0.025em;
+  font-weight: 700;
+}
+.dark h1,
+.dark h2,
+.dark h3 {
+  color: var(--text-strong);
+}
+
+/* ── Motion ───────────────────────────────────────────────────────────────
+   One easing curve everywhere so transitions feel like one system. Buttons,
+   links and inputs get a smooth default so nothing snaps. */
+:root {
+  --ease: cubic-bezier(0.22, 1, 0.36, 1); /* gentle overshoot-free ease-out */
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+button,
+a,
+input,
+textarea,
+select,
+.card {
+  transition-timing-function: var(--ease);
+  transition-duration: 200ms;
+}
+
+/* Cards lift softly on hover rather than jumping. */
+.card {
+  transition-property: box-shadow, border-color, background-color, transform;
+}
+
+/* Respect users who ask for less motion — kill non-essential animation. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* Very subtle dotted grid for hero/empty backgrounds — light, no glow. */
 .bg-grid {
-  background-image: radial-gradient(rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(60, 40, 25, 0.05) 1px, transparent 1px);
   background-size: 22px 22px;
 }
 .dark .bg-grid {
@@ -87,13 +168,13 @@ body {
   color: var(--text-muted);
 }
 
-/* Indigo accents (active nav, links) toned for dark */
+/* Brand accents (active nav, links) toned for dark */
 .dark .bg-indigo-50 {
-  background-color: rgba(99, 102, 241, 0.16);
+  background-color: rgba(196, 96, 60, 0.2);
 }
 .dark .text-indigo-700,
 .dark .text-indigo-600 {
-  color: #a5b4fc;
+  color: #e0a184;
 }
 
 /* Hover states for the most common interactive surfaces */
@@ -102,7 +183,7 @@ body {
   background-color: var(--surface-3);
 }
 .dark .hover\:bg-indigo-50:hover {
-  background-color: rgba(99, 102, 241, 0.16);
+  background-color: rgba(196, 96, 60, 0.2);
 }
 .dark .hover\:text-slate-900:hover {
   color: var(--text-strong);
@@ -141,7 +222,7 @@ body {
   --tw-prose-body: var(--text);
   --tw-prose-headings: var(--text-strong);
   --tw-prose-bold: var(--text-strong);
-  --tw-prose-links: #a5b4fc;
+  --tw-prose-links: #e0a184;
   --tw-prose-bullets: #64748b;
   --tw-prose-counters: var(--text-muted);
   --tw-prose-quotes: var(--text);
@@ -154,10 +235,23 @@ body {
   --tw-prose-td-borders: var(--border);
 }
 
-/* Modern accent text — a restrained indigo→violet, no neon. */
+/* Brand accent text — muted terracotta → gold. */
 .gradient-text {
   @apply bg-clip-text text-transparent;
-  background-image: linear-gradient(90deg, #4f46e5, #7c3aed);
+  background-image: linear-gradient(90deg, #b0512f, #d59a3c);
+}
+
+/* Same gradient, drifting slowly across the word (hero only — keep it rare). */
+.gradient-shimmer {
+  @apply bg-clip-text text-transparent;
+  background-image: linear-gradient(90deg, #b0512f, #d59a3c, #b0512f);
+  background-size: 200% auto;
+  animation: shimmer 6s linear infinite;
+}
+@keyframes shimmer {
+  to {
+    background-position: -200% center;
+  }
 }
 
 /* Component classes live in the components layer so plain utilities
@@ -176,6 +270,16 @@ body {
 
   .card {
     @apply rounded-xl border border-slate-200 bg-white shadow-sm;
+  }
+
+  /* Cards that are themselves a target: lift + warm on hover. */
+  .card-interactive {
+    @apply transition-all hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md;
+  }
+
+  /* Loading placeholder — use instead of a "Loading…" string. */
+  .skeleton {
+    @apply animate-pulse rounded-md bg-slate-100;
   }
 
   .input {

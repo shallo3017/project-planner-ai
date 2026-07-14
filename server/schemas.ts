@@ -1,6 +1,27 @@
 import { z } from 'zod';
+import { DOC_TYPES } from './models/AiDocument';
 
 // Shared request schemas reused across route handlers.
+
+/** Admin-authored document template (see /api/admin/templates). */
+export const templateBodySchema = z.object({
+  name: z.string().min(1).max(120),
+  docType: z.enum(DOC_TYPES),
+  description: z.string().max(500).optional().default(''),
+  role: z.string().max(500).optional().default(''),
+  sections: z
+    .array(
+      z.object({
+        heading: z.string().min(1).max(160),
+        guidance: z.string().max(2000).optional().default(''),
+      }),
+    )
+    .max(30)
+    .optional()
+    .default([]),
+  instructions: z.string().max(4000).optional().default(''),
+  isActive: z.boolean().optional().default(true),
+});
 
 export const createProjectSchema = z.object({
   name: z.string().min(1).max(200),

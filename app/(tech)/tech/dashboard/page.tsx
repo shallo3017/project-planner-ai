@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
+import { Spinner } from '@/components/loader';
 import { apiDownload, apiFetch } from '@/lib/api';
 
 type DocType = 'prd' | 'trd' | 'brd' | 'srs' | 'api_docs' | 'db_schema';
@@ -116,7 +117,15 @@ export default function TechDashboardPage() {
         {/* Project list */}
         <aside className="space-y-2">
           {loading ? (
-            <div className="card grid place-items-center py-12 text-slate-500">Loading…</div>
+            <div className="space-y-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="card space-y-2 p-4">
+                  <div className="skeleton h-4 w-2/3" />
+                  <div className="skeleton h-3 w-1/3" />
+                  <div className="skeleton h-3 w-1/2" />
+                </div>
+              ))}
+            </div>
           ) : projects.length === 0 ? (
             <div className="card grid place-items-center gap-2 py-12 text-center text-sm text-slate-500">
               <FolderKanban className="h-8 w-8 text-slate-300" />
@@ -125,24 +134,40 @@ export default function TechDashboardPage() {
           ) : (
             projects.map((p) => {
               const owner = typeof p.ownerId === 'object' ? p.ownerId : null;
+              const active = selectedId === p.id;
               return (
                 <button
                   key={p.id}
                   onClick={() => setSelectedId(p.id)}
-                  className={`card w-full p-4 text-left transition-colors ${
-                    selectedId === p.id ? 'border-indigo-300 ring-1 ring-indigo-200' : 'hover:bg-slate-50'
+                  aria-current={active ? 'true' : undefined}
+                  className={`card animate-fade-up relative w-full overflow-hidden p-4 text-left transition-all ${
+                    active
+                      ? 'border-indigo-300 shadow-md ring-1 ring-indigo-200'
+                      : 'hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md'
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-2">
+                  {/* Selected item gets an accent rail rather than a heavy fill. */}
+                  <span
+                    className={`absolute inset-y-0 left-0 w-1 transition-colors ${
+                      active ? 'bg-indigo-600' : 'bg-transparent'
+                    }`}
+                  />
+                  <div className="flex items-center justify-between gap-2 pl-1.5">
                     <span className="font-semibold text-slate-900">{p.name}</span>
                     {p.status === 'locked' ? (
-                      <Lock className="h-3.5 w-3.5 text-indigo-500" />
+                      <Lock className="h-3.5 w-3.5 shrink-0 text-indigo-500" />
                     ) : (
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
                     )}
                   </div>
-                  {p.industry && <p className="text-xs uppercase tracking-wide text-indigo-600">{p.industry}</p>}
-                  {owner && <p className="mt-1 text-xs text-slate-500">{owner.fullName}</p>}
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 pl-1.5">
+                    {p.industry && (
+                      <span className="text-xs uppercase tracking-wide text-indigo-600">
+                        {p.industry}
+                      </span>
+                    )}
+                    {owner && <span className="text-xs text-slate-500">· {owner.fullName}</span>}
+                  </div>
                 </button>
               );
             })
@@ -153,7 +178,13 @@ export default function TechDashboardPage() {
         <section>
           {!detail ? (
             <div className="card grid place-items-center py-16 text-slate-500">
-              {selectedId ? 'Loading…' : 'Select a project.'}
+              {selectedId ? (
+                <span className="inline-flex items-center gap-2">
+                  <Spinner /> Loading project…
+                </span>
+              ) : (
+                'Select a project.'
+              )}
             </div>
           ) : (
             <div className="space-y-6">
@@ -172,8 +203,18 @@ export default function TechDashboardPage() {
               </div>
 
               <DocumentsCard projectId={detail.project.id} docs={detail.documents} />
-              <TasksCard projectId={detail.project.id} initial={detail.tasks} />
-              <MilestonesCard projectId={detail.project.id} initial={detail.milestones} />
+              {/* Keyed by project: without this React reuses the cards and keeps
+                  the previous project's tasks/milestones in local state. */}
+              <TasksCard
+                key={`t-${detail.project.id}`}
+                projectId={detail.project.id}
+                initial={detail.tasks}
+              />
+              <MilestonesCard
+                key={`m-${detail.project.id}`}
+                projectId={detail.project.id}
+                initial={detail.milestones}
+              />
             </div>
           )}
         </section>
@@ -221,39 +262,80 @@ const TASK_NEXT: Record<Task['status'], Task['status']> = {
 function TasksCard({ projectId, initial }: { projectId: string; initial: Task[] }) {
   const [tasks, setTasks] = useState<Task[]>(initial);
   const [title, setTitle] = useState('');
+  const [saving, setSaving] = useState(false);
+  // Every handler below now reports failures. Previously they had no try/catch,
+  // so a failed request (e.g. the DB unreachable) silently did nothing and the
+  // buttons looked broken.
+  const [err, setErr] = useState<string | null>(null);
 
   async function add() {
     const t = title.trim();
-    if (!t) return;
-    setTitle('');
-    const { task } = await apiFetch<{ task: Task }>(`/tech/projects/${projectId}/tasks`, {
-      method: 'POST',
-      body: JSON.stringify({ title: t }),
-    });
-    setTasks((prev) => [...prev, task]);
+    if (!t || saving) return;
+    setSaving(true);
+    setErr(null);
+    try {
+      const { task } = await apiFetch<{ task: Task }>(`/tech/projects/${projectId}/tasks`, {
+        method: 'POST',
+        body: JSON.stringify({ title: t }),
+      });
+      setTasks((prev) => [...prev, task]);
+      setTitle('');
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not add the task');
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function cycle(task: Task) {
     const status = TASK_NEXT[task.status];
-    const { task: updated } = await apiFetch<{ task: Task }>(`/tech/tasks/${task.id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status }),
-    });
-    setTasks((prev) => prev.map((x) => (x.id === task.id ? updated : x)));
+    try {
+      const { task: updated } = await apiFetch<{ task: Task }>(`/tech/tasks/${task.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      });
+      setTasks((prev) => prev.map((x) => (x.id === task.id ? updated : x)));
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not update the task');
+    }
   }
 
   async function remove(id: string) {
-    await apiFetch(`/tech/tasks/${id}`, { method: 'DELETE' });
-    setTasks((prev) => prev.filter((x) => x.id !== id));
+    try {
+      await apiFetch(`/tech/tasks/${id}`, { method: 'DELETE' });
+      setTasks((prev) => prev.filter((x) => x.id !== id));
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not delete the task');
+    }
   }
 
   const done = tasks.filter((t) => t.status === 'done').length;
 
+  const pct = tasks.length === 0 ? 0 : Math.round((done / tasks.length) * 100);
+
   return (
     <div className="card p-5">
-      <h3 className="mb-3 text-sm font-semibold text-slate-900">
-        Tasks <span className="text-slate-400">({done}/{tasks.length} done)</span>
-      </h3>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold text-slate-900">
+          Tasks{' '}
+          <span className="text-slate-400">
+            ({done}/{tasks.length} done)
+          </span>
+        </h3>
+        {tasks.length > 0 && (
+          <div className="flex items-center gap-2">
+            <div className="h-1.5 w-24 overflow-hidden rounded-full bg-slate-200">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${
+                  pct === 100 ? 'bg-emerald-500' : 'bg-indigo-500'
+                }`}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <span className="text-xs font-medium tabular-nums text-slate-500">{pct}%</span>
+          </div>
+        )}
+      </div>
       <ul className="space-y-1.5">
         {tasks.map((t) => (
           <li key={t.id} className="flex items-center gap-2.5">
@@ -274,8 +356,15 @@ function TasksCard({ projectId, initial }: { projectId: string; initial: Task[] 
             </button>
           </li>
         ))}
-        {tasks.length === 0 && <li className="text-sm text-slate-400">No tasks yet.</li>}
+        {tasks.length === 0 && (
+          <li className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-center text-sm text-slate-400">
+            No tasks yet — add the first one below.
+          </li>
+        )}
       </ul>
+
+      {err && <p className="mt-2 text-xs text-red-600">{err}</p>}
+
       <div className="mt-3 flex items-center gap-2">
         <input
           className="input"
@@ -289,8 +378,12 @@ function TasksCard({ projectId, initial }: { projectId: string; initial: Task[] 
             }
           }}
         />
-        <button onClick={add} className="btn-ghost shrink-0 px-3 py-2 text-sm">
-          <Plus className="h-4 w-4" /> Add
+        <button
+          onClick={add}
+          disabled={saving || !title.trim()}
+          className="btn-ghost shrink-0 px-3 py-2 text-sm disabled:opacity-50"
+        >
+          {saving ? <Spinner /> : <Plus className="h-4 w-4" />} Add
         </button>
       </div>
     </div>
@@ -301,31 +394,49 @@ function MilestonesCard({ projectId, initial }: { projectId: string; initial: Mi
   const [items, setItems] = useState<Milestone[]>(initial);
   const [title, setTitle] = useState('');
   const [due, setDue] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
   async function add() {
     const t = title.trim();
-    if (!t) return;
-    setTitle('');
-    setDue('');
-    const { milestone } = await apiFetch<{ milestone: Milestone }>(
-      `/tech/projects/${projectId}/milestones`,
-      { method: 'POST', body: JSON.stringify({ title: t, dueDate: due || null }) },
-    );
-    setItems((prev) => [...prev, milestone]);
+    if (!t || saving) return;
+    setSaving(true);
+    setErr(null);
+    try {
+      const { milestone } = await apiFetch<{ milestone: Milestone }>(
+        `/tech/projects/${projectId}/milestones`,
+        { method: 'POST', body: JSON.stringify({ title: t, dueDate: due || null }) },
+      );
+      setItems((prev) => [...prev, milestone]);
+      setTitle('');
+      setDue('');
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not add the milestone');
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function toggle(m: Milestone) {
     const status = m.status === 'done' ? 'pending' : 'done';
-    const { milestone } = await apiFetch<{ milestone: Milestone }>(`/tech/milestones/${m.id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status }),
-    });
-    setItems((prev) => prev.map((x) => (x.id === m.id ? milestone : x)));
+    try {
+      const { milestone } = await apiFetch<{ milestone: Milestone }>(`/tech/milestones/${m.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      });
+      setItems((prev) => prev.map((x) => (x.id === m.id ? milestone : x)));
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not update the milestone');
+    }
   }
 
   async function remove(id: string) {
-    await apiFetch(`/tech/milestones/${id}`, { method: 'DELETE' });
-    setItems((prev) => prev.filter((x) => x.id !== id));
+    try {
+      await apiFetch(`/tech/milestones/${id}`, { method: 'DELETE' });
+      setItems((prev) => prev.filter((x) => x.id !== id));
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not delete the milestone');
+    }
   }
 
   return (
@@ -354,18 +465,40 @@ function MilestonesCard({ projectId, initial }: { projectId: string; initial: Mi
             </button>
           </li>
         ))}
-        {items.length === 0 && <li className="text-sm text-slate-400">No milestones yet.</li>}
+        {items.length === 0 && (
+          <li className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-center text-sm text-slate-400">
+            No milestones yet — add the first one below.
+          </li>
+        )}
       </ul>
+
+      {err && <p className="mt-2 text-xs text-red-600">{err}</p>}
+
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <input
           className="input flex-1"
           placeholder="Add a milestone…"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              void add();
+            }
+          }}
         />
-        <input type="date" className="input sm:w-40" value={due} onChange={(e) => setDue(e.target.value)} />
-        <button onClick={add} className="btn-ghost shrink-0 px-3 py-2 text-sm">
-          <Plus className="h-4 w-4" /> Add
+        <input
+          type="date"
+          className="input sm:w-40"
+          value={due}
+          onChange={(e) => setDue(e.target.value)}
+        />
+        <button
+          onClick={add}
+          disabled={saving || !title.trim()}
+          className="btn-ghost shrink-0 px-3 py-2 text-sm disabled:opacity-50"
+        >
+          {saving ? <Spinner /> : <Plus className="h-4 w-4" />} Add
         </button>
       </div>
     </div>

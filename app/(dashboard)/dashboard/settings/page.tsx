@@ -1,6 +1,6 @@
 'use client';
 
-import { Check } from 'lucide-react';
+import { Check, Lock } from 'lucide-react';
 import { useState } from 'react';
 import { apiFetch } from '@/lib/api';
 import { useAuth, type User } from '@/lib/auth';
@@ -71,20 +71,43 @@ function ProfileSection({ user, onUpdated }: { user: User | null; onUpdated: (u:
   }
 
   return (
-    <form onSubmit={save} className="card p-6">
-      <h2 className="text-sm font-semibold text-slate-900">Profile</h2>
-      <p className="mt-0.5 text-xs text-slate-500">Update your display name.</p>
-      <div className="mt-4 space-y-4">
-        <div>
-          <label className="label">Full name</label>
-          <input className="input" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+    <form onSubmit={save} className="card flex flex-col">
+      <div className="p-6">
+        <h2 className="text-sm font-semibold text-slate-900">Profile</h2>
+        <p className="mt-0.5 text-xs text-slate-500">Update your display name.</p>
+        <div className="mt-4 space-y-4">
+          <div>
+            <label className="label">Full name</label>
+            <input
+              className="input"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <label className="label">Email</label>
+            <div className="relative">
+              <input
+                className="input cursor-not-allowed bg-slate-50 pr-10 text-slate-500"
+                value={user?.email ?? ''}
+                disabled
+              />
+              <Lock className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            </div>
+            <p className="mt-1.5 text-xs text-slate-400">
+              Your email is your sign-in — contact support to change it.
+            </p>
+          </div>
+          {msg && (
+            <p className={`text-sm ${msg.ok ? 'text-emerald-700' : 'text-red-600'}`}>{msg.text}</p>
+          )}
         </div>
-        <div>
-          <label className="label">Email</label>
-          <input className="input bg-slate-50 text-slate-500" value={user?.email ?? ''} disabled />
-        </div>
-        {msg && <p className={`text-sm ${msg.ok ? 'text-emerald-700' : 'text-red-600'}`}>{msg.text}</p>}
-        <button type="submit" className="btn-primary px-4 py-2" disabled={saving}>
+      </div>
+
+      {/* Actions live in a footer, not floating under the fields. */}
+      <div className="mt-auto flex justify-end border-t border-slate-100 px-6 py-4">
+        <button type="submit" className="btn-primary px-4 py-2 text-sm" disabled={saving}>
           <Check className="h-4 w-4" /> {saving ? 'Saving…' : 'Save profile'}
         </button>
       </div>
@@ -124,46 +147,54 @@ function PasswordSection() {
   }
 
   return (
-    <form onSubmit={save} className="card p-6">
-      <h2 className="text-sm font-semibold text-slate-900">Change password</h2>
-      <p className="mt-0.5 text-xs text-slate-500">Use at least 8 characters.</p>
-      <div className="mt-4 space-y-4">
-        <div>
-          <label className="label">Current password</label>
-          <input
-            type="password"
-            className="input"
-            value={currentPassword}
-            onChange={(e) => setCurrent(e.target.value)}
-            required
-          />
-        </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <form onSubmit={save} className="card flex flex-col">
+      <div className="p-6">
+        <h2 className="text-sm font-semibold text-slate-900">Change password</h2>
+        <p className="mt-0.5 text-xs text-slate-500">Use at least 8 characters.</p>
+        <div className="mt-4 space-y-4">
           <div>
-            <label className="label">New password</label>
+            <label className="label">Current password</label>
             <input
               type="password"
               className="input"
-              value={newPassword}
-              onChange={(e) => setNew(e.target.value)}
-              minLength={8}
+              value={currentPassword}
+              onChange={(e) => setCurrent(e.target.value)}
               required
             />
           </div>
-          <div>
-            <label className="label">Confirm new</label>
-            <input
-              type="password"
-              className="input"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              minLength={8}
-              required
-            />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className="label">New password</label>
+              <input
+                type="password"
+                className="input"
+                value={newPassword}
+                onChange={(e) => setNew(e.target.value)}
+                minLength={8}
+                required
+              />
+            </div>
+            <div>
+              <label className="label">Confirm new</label>
+              <input
+                type="password"
+                className="input"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                minLength={8}
+                required
+              />
+            </div>
           </div>
+          {msg && (
+            <p className={`text-sm ${msg.ok ? 'text-emerald-700' : 'text-red-600'}`}>{msg.text}</p>
+          )}
         </div>
-        {msg && <p className={`text-sm ${msg.ok ? 'text-emerald-700' : 'text-red-600'}`}>{msg.text}</p>}
-        <button type="submit" className="btn-primary px-4 py-2" disabled={saving}>
+      </div>
+
+      <div className="mt-auto flex justify-end border-t border-slate-100 px-6 py-4">
+        {/* Secondary to the profile form's primary — one filled button per view. */}
+        <button type="submit" className="btn-ghost px-4 py-2 text-sm" disabled={saving}>
           <Check className="h-4 w-4" /> {saving ? 'Updating…' : 'Update password'}
         </button>
       </div>

@@ -3,6 +3,7 @@
 import { Download, Eye, FileText } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
+import { DocStatusPill } from '@/components/status-pill';
 import { apiDownload, apiFetch } from '@/lib/api';
 
 interface ProjectRef {
@@ -60,7 +61,17 @@ export default function DocumentsPage() {
 
       <div className="card mt-8 overflow-hidden">
         {loading ? (
-          <div className="grid place-items-center py-16 text-slate-500">Loading…</div>
+          <div className="divide-y divide-slate-100">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 px-5 py-4">
+                <div className="skeleton h-4 flex-1" />
+                <div className="skeleton h-6 w-14 rounded-md" />
+                <div className="skeleton h-5 w-20 rounded-full" />
+                <div className="skeleton h-4 w-8" />
+                <div className="skeleton h-7 w-24 rounded-lg" />
+              </div>
+            ))}
+          </div>
         ) : docs.length === 0 ? (
           <div className="grid place-items-center gap-3 py-16 text-center">
             <FileText className="h-10 w-10 text-slate-300" />
@@ -82,12 +93,12 @@ export default function DocumentsPage() {
                 const project = typeof d.projectId === 'object' ? d.projectId : null;
                 const pid = project?.id ?? (typeof d.projectId === 'string' ? d.projectId : '');
                 return (
-                  <tr key={d.id} className="hover:bg-slate-50/60">
+                  <tr key={d.id} className="group transition-colors hover:bg-slate-50">
                     <td className="px-5 py-3 font-medium text-slate-900">
                       {project ? (
                         <Link
                           href={`/dashboard/projects/${project.id}`}
-                          className="hover:text-indigo-700 hover:underline"
+                          className="hover:text-indigo-700"
                         >
                           {project.name}
                         </Link>
@@ -95,28 +106,34 @@ export default function DocumentsPage() {
                         '—'
                       )}
                     </td>
-                    <td className="px-5 py-3 font-semibold uppercase text-slate-700">{d.docType}</td>
                     <td className="px-5 py-3">
-                      {d.isApproved ? (
-                        <span className="text-emerald-700">Approved</span>
-                      ) : (
-                        <span className="text-amber-700">Draft</span>
-                      )}
+                      <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold uppercase text-slate-700">
+                        <FileText className="h-3.5 w-3.5 text-indigo-600" />
+                        {d.docType}
+                      </span>
                     </td>
-                    <td className="px-5 py-3 text-slate-500">v{d.version}</td>
                     <td className="px-5 py-3">
-                      <div className="flex items-center justify-end gap-1.5">
+                      <DocStatusPill approved={d.isApproved} />
+                    </td>
+                    <td className="px-5 py-3 tabular-nums text-slate-500">v{d.version}</td>
+                    <td className="px-5 py-3">
+                      {/* Actions stay quiet until the row is hovered (and remain
+                          reachable by keyboard via focus-within). */}
+                      <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                         <Link
                           href={`/documents/${pid}`}
-                          className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                          title="View"
+                          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-indigo-700"
                         >
-                          <Eye className="h-3.5 w-3.5" /> View
+                          <Eye className="h-4 w-4" /> View
                         </Link>
                         <button
                           onClick={() => download(pid, d.docType)}
-                          className="inline-flex items-center gap-1 rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+                          title="Download"
+                          aria-label={`Download ${d.docType.toUpperCase()}`}
+                          className="inline-flex items-center rounded-md p-1.5 text-slate-600 transition-colors hover:bg-slate-100 hover:text-indigo-700"
                         >
-                          <Download className="h-3.5 w-3.5" />
+                          <Download className="h-4 w-4" />
                         </button>
                       </div>
                     </td>

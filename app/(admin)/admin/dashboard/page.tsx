@@ -32,7 +32,16 @@ interface Stats {
   projectsByMonth: { name: string; value: number }[];
 }
 
-const PIE_COLORS = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#94a3b8'];
+// Categorical slots from globals.css, in FIXED order — the order is the
+// colorblind-safety mechanism (validated), so never reorder or cycle it.
+const PIE_COLORS = [
+  'var(--chart-1)',
+  'var(--chart-2)',
+  'var(--chart-3)',
+  'var(--chart-4)',
+  'var(--chart-5)',
+  'var(--chart-6)',
+];
 
 // Budgets are stored in USD; show the estimated pipeline in INR (Lakh/Crore).
 const USD_TO_INR = 83;
@@ -111,14 +120,20 @@ export default function AdminDashboardPage() {
             <AreaChart data={stats?.projectsByMonth ?? []} margin={{ left: -20, right: 8, top: 8 }}>
               <defs>
                 <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#6366f1" stopOpacity={0.35} />
-                  <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
+                  <stop offset="0%" stopColor="var(--chart-1)" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="var(--chart-1)" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-              <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
+              <XAxis dataKey="name" stroke="var(--chart-axis)" fontSize={12} tickLine={false} axisLine={false} />
+              <YAxis stroke="var(--chart-axis)" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
               <Tooltip />
-              <Area type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={2} fill="url(#g)" />
+              <Area
+                type="monotone"
+                dataKey="value"
+                stroke="var(--chart-1)"
+                strokeWidth={2}
+                fill="url(#g)"
+              />
             </AreaChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -126,10 +141,10 @@ export default function AdminDashboardPage() {
         <ChartCard title="Projects by status">
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={statusData} margin={{ left: -20, right: 8, top: 8 }}>
-              <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-              <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
-              <Tooltip cursor={{ fill: '#f1f5f9' }} />
-              <Bar dataKey="value" radius={[6, 6, 0, 0]} fill="#6366f1" />
+              <XAxis dataKey="name" stroke="var(--chart-axis)" fontSize={12} tickLine={false} axisLine={false} />
+              <YAxis stroke="var(--chart-axis)" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
+              <Tooltip cursor={{ fill: 'var(--chart-cursor)' }} />
+              <Bar dataKey="value" radius={[4, 4, 0, 0]} fill="var(--chart-1)" />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -170,9 +185,9 @@ export default function AdminDashboardPage() {
 
         <ChartCard title="Users by role">
           <div className="flex h-[240px] flex-col justify-center gap-5 px-2">
-            <RoleBar label="Clients" value={stats?.users.client ?? 0} total={stats?.users.total ?? 0} color="bg-slate-400" />
-            <RoleBar label="Developers" value={stats?.users.tech ?? 0} total={stats?.users.total ?? 0} color="bg-sky-500" />
-            <RoleBar label="Admins" value={stats?.users.admin ?? 0} total={stats?.users.total ?? 0} color="bg-indigo-500" />
+            <RoleBar label="Clients" value={stats?.users.client ?? 0} total={stats?.users.total ?? 0} color="bg-[var(--chart-1)]" />
+            <RoleBar label="Developers" value={stats?.users.tech ?? 0} total={stats?.users.total ?? 0} color="bg-[var(--chart-2)]" />
+            <RoleBar label="Admins" value={stats?.users.admin ?? 0} total={stats?.users.total ?? 0} color="bg-[var(--chart-3)]" />
           </div>
         </ChartCard>
       </div>

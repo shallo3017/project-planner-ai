@@ -1,10 +1,21 @@
 'use client';
 
 import { GoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
-import { Dumbbell, GraduationCap, Lock, Plus, Send, Sparkles, Store, Utensils, X } from 'lucide-react';
+import {
+  ArrowRight,
+  Dumbbell,
+  GraduationCap,
+  Lock,
+  Plus,
+  Send,
+  Sparkles,
+  Store,
+  Utensils,
+  X,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, apiStream } from '@/lib/api';
 import { homePathForRole, useAuth } from '@/lib/auth';
 import { Brand } from './brand';
 import { MicButton, VoiceWave } from './mic-button';
@@ -29,6 +40,51 @@ const HERO_PROMPTS = [
   { icon: GraduationCap, text: 'An online learning platform' },
 ];
 
+// Examples the hero placeholder types out — shows the user what "good" looks like.
+const TYPED_EXAMPLES = [
+  'A food delivery app for my city…',
+  'A fitness app with an AI coach…',
+  'A marketplace for local sellers…',
+  'An online learning platform…',
+];
+
+const prefersReducedMotion = () =>
+  typeof window !== 'undefined' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/**
+ * Types an example out, pauses, deletes it, then moves to the next — a live hint
+ * of what to write. Idles (and yields the static placeholder) once `active` is
+ * false, i.e. as soon as the user focuses or types.
+ */
+function useTypedPlaceholder(active: boolean): string {
+  const [text, setText] = useState('');
+  const [index, setIndex] = useState(0);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    if (!active || prefersReducedMotion()) return;
+    const full = TYPED_EXAMPLES[index % TYPED_EXAMPLES.length];
+    const atEnd = !deleting && text === full;
+    const atStart = deleting && text === '';
+
+    // Linger on the finished phrase; snap through the delete.
+    const delay = atEnd ? 1800 : atStart ? 300 : deleting ? 30 : 55;
+
+    const t = setTimeout(() => {
+      if (atEnd) return setDeleting(true);
+      if (atStart) {
+        setDeleting(false);
+        return setIndex((i) => i + 1);
+      }
+      setText(deleting ? full.slice(0, text.length - 1) : full.slice(0, text.length + 1));
+    }, delay);
+    return () => clearTimeout(t);
+  }, [text, deleting, index, active]);
+
+  return text;
+}
+
 /** Public, no-login chatbot landing. Guests scope a project, then sign in at the
  *  generate step — their conversation is preserved and turned into a project. */
 export function GuestChat() {
@@ -40,6 +96,11 @@ export function GuestChat() {
   const [sending, setSending] = useState(false);
   const [recording, setRecording] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // The placeholder types itself while the field is still empty; the moment the
+  // user types (or dictates) it yields to their text. Runs under autoFocus too.
+  const typingIdle = !input && !recording;
+  const typed = useTypedPlaceholder(typingIdle);
   const [showAuth, setShowAuth] = useState(false);
   // 'generate' → build the project from the chat after auth; 'login' → just sign in.
   const [authIntent, setAuthIntent] = useState<'generate' | 'login'>('generate');
@@ -104,14 +165,29 @@ export function GuestChat() {
     setInput('');
     setSending(true);
     setError(null);
+
+    // Stream the reply into a placeholder bubble so text appears as it's written.
+    let streamed = false;
     try {
-      const { reply } = await apiFetch<{ reply: string }>('/public/chat', {
-        method: 'POST',
-        body: JSON.stringify({ messages: next }),
+      await apiStream('/public/chat/stream', { messages: next }, (chunk) => {
+        if (!streamed) {
+          streamed = true;
+          setSending(false); // first token has landed — drop the typing dots
+          setMessages((m) => [...m, { role: 'assistant', content: chunk }]);
+          return;
+        }
+        setMessages((m) => {
+          const copy = [...m];
+          const last = copy[copy.length - 1];
+          if (last?.role === 'assistant') {
+            copy[copy.length - 1] = { ...last, content: last.content + chunk };
+          }
+          return copy;
+        });
       });
-      setMessages((m) => [...m, { role: 'assistant', content: reply }]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Chat failed');
+      if (streamed) setMessages((m) => m.slice(0, -1)); // drop the partial reply
     } finally {
       setSending(false);
     }
@@ -237,12 +313,24 @@ export function GuestChat() {
         </>
       ) : (
         /* ── Empty hero state ── */
-        <div className="flex flex-1 flex-col items-center justify-center px-4 pb-24">
-          <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm">
+        <div className="relative flex flex-1 flex-col items-center justify-center px-4 pb-24">
+          {/* Ambient warm glow — slow, low-opacity, purely atmospheric. */}
+          <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+            <div className="animate-aurora absolute left-1/2 top-1/4 h-[420px] w-[640px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(176,81,47,0.16),transparent)] blur-3xl" />
+            <div className="animate-aurora-alt absolute left-1/3 top-1/2 h-[380px] w-[540px] rounded-full bg-[radial-gradient(closest-side,rgba(213,154,60,0.14),transparent)] blur-3xl" />
+          </div>
+
+          <span
+            className="animate-fade-up mb-5 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm"
+            style={{ animationDelay: '0ms' }}
+          >
             <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" /> RoadmapAI · project assistant
           </span>
-          <h1 className="mb-8 text-center text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
-            What do you want to <span className="gradient-text">build</span>?
+          <h1
+            className="animate-fade-up mb-8 text-center text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl"
+            style={{ animationDelay: '80ms' }}
+          >
+            What do you want to <span className="gradient-shimmer">build</span>?
           </h1>
 
           <form
@@ -250,13 +338,20 @@ export function GuestChat() {
               e.preventDefault();
               void send();
             }}
-            className="w-full max-w-2xl"
+            className="animate-fade-up w-full max-w-2xl"
+            style={{ animationDelay: '160ms' }}
           >
-            <div className="relative flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-2 shadow-sm transition-shadow focus-within:border-slate-400 focus-within:shadow-md">
+            <div className="relative flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-2 shadow-sm transition-all focus-within:border-indigo-400 focus-within:shadow-lg focus-within:ring-4 focus-within:ring-indigo-500/10">
               <Plus className="ml-1 h-5 w-5 shrink-0 text-slate-400" />
               <input
                 className="flex-1 bg-transparent px-1 py-2 text-[15px] text-slate-900 outline-none placeholder:text-slate-400"
-                placeholder={recording ? '' : 'Describe the app or product you want to build…'}
+                placeholder={
+                  recording
+                    ? ''
+                    : typingIdle
+                      ? typed
+                      : 'Describe the app or product you want to build…'
+                }
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 autoFocus
@@ -283,18 +378,24 @@ export function GuestChat() {
           {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
 
           <div className="mt-6 grid w-full max-w-2xl gap-2 sm:grid-cols-2">
-            {HERO_PROMPTS.map(({ icon: Icon, text }) => (
+            {HERO_PROMPTS.map(({ icon: Icon, text }, i) => (
               <button
                 key={text}
                 onClick={() => void send(text)}
-                className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-600 shadow-sm transition-colors hover:border-indigo-300 hover:text-indigo-700"
+                style={{ animationDelay: `${240 + i * 60}ms` }}
+                className="group animate-fade-up flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-600 shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:text-indigo-700 hover:shadow-md"
               >
-                <Icon className="h-4 w-4 shrink-0 text-indigo-500" /> {text}
+                <Icon className="h-4 w-4 shrink-0 text-indigo-500 transition-transform group-hover:scale-110" />
+                <span className="flex-1">{text}</span>
+                <ArrowRight className="h-4 w-4 shrink-0 -translate-x-1 text-indigo-500 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
               </button>
             ))}
           </div>
 
-          <p className="mt-8 text-center text-xs text-slate-400">
+          <p
+            className="animate-fade-up mt-8 text-center text-xs text-slate-400"
+            style={{ animationDelay: '480ms' }}
+          >
             No account needed to start · Sign in when you're ready to generate documents.
           </p>
         </div>

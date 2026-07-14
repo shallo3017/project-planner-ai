@@ -16,10 +16,14 @@ import {
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Spinner } from '@/components/loader';
 import { apiDownload, apiFetch } from '@/lib/api';
 
 type Status = 'draft' | 'in_review' | 'approved' | 'locked' | 'archived';
 const STATUSES: Status[] = ['draft', 'in_review', 'approved', 'locked', 'archived'];
+
+// Generated in this order — the PRD grounds the TRD (see `generate()` below).
+const GEN_DOC_TYPES = ['prd', 'trd'] as const;
 
 const STATUS_STYLES: Record<Status, string> = {
   draft: 'bg-slate-100 text-slate-600 border-slate-200',
@@ -62,6 +66,9 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [genStep, setGenStep] = useState<{ done: number; total: number; current: string } | null>(
+    null,
+  );
   const [showChecklist, setShowChecklist] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -129,20 +136,33 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
     }
   }
 
+  /**
+   * Generate one document per request, in order.
+   *
+   * Two reasons this isn't a single call: a request that generates several
+   * long documents can exceed the serverless function time limit, and the PRD
+   * must be persisted first so the TRD request can ground itself in it
+   * (the API pulls the stored PRD in as context).
+   */
   async function generate(features?: string[]) {
     setShowChecklist(false);
     setGenerating(true);
     setError(null);
     try {
-      await apiFetch(`/ai/generate/${params.id}`, {
-        method: 'POST',
-        body: JSON.stringify({ features: features ?? [] }),
-      });
+      for (let i = 0; i < GEN_DOC_TYPES.length; i++) {
+        const docType = GEN_DOC_TYPES[i];
+        setGenStep({ done: i, total: GEN_DOC_TYPES.length, current: docType.toUpperCase() });
+        await apiFetch(`/ai/generate/${params.id}`, {
+          method: 'POST',
+          body: JSON.stringify({ features: features ?? [], docTypes: [docType] }),
+        });
+      }
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Generation failed');
     } finally {
       setGenerating(false);
+      setGenStep(null);
     }
   }
 
@@ -186,7 +206,9 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
       )}
 
       {loading ? (
-        <div className="mt-10 text-slate-500">Loading…</div>
+        <div className="mt-10 inline-flex items-center gap-2 text-slate-500">
+          <Spinner /> Loading project…
+        </div>
       ) : !project ? (
         <div className="mt-10 text-slate-500">Project not found.</div>
       ) : editing ? (
@@ -266,7 +288,11 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
                   disabled={generating}
                   className="text-sm text-slate-500 hover:text-slate-900 disabled:opacity-50"
                 >
-                  {generating ? 'Regenerating…' : '↻ Regenerate'}
+                  {generating
+                    ? genStep
+                      ? `Regenerating ${genStep.current}… (${genStep.done + 1}/${genStep.total})`
+                      : 'Regenerating…'
+                    : '↻ Regenerate'}
                 </button>
               ))}
           </div>
@@ -288,7 +314,10 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
                   </p>
                 ) : generating ? (
                   <p className="inline-flex items-center gap-1.5 text-sm text-slate-500">
-                    <Sparkles className="h-4 w-4 animate-pulse" /> Generating…
+                    <Sparkles className="h-4 w-4 animate-pulse text-indigo-600" />
+                    {genStep
+                      ? `Generating ${genStep.current}… (${genStep.done + 1}/${genStep.total})`
+                      : 'Generating…'}
                   </p>
                 ) : (
                   <>

@@ -2,13 +2,62 @@ import dns from 'node:dns';
 import mongoose from 'mongoose';
 import { env } from './env';
 
-/** Point Node's resolver at public DNS before SRV lookups (Atlas `mongodb+srv`). */
+let lookupPatched = false;
+
+/**
+ * Route DNS for Atlas hosts through the configured public resolvers.
+ *
+ * `dns.setServers()` alone is not enough: it only affects `dns.resolve*()` (the
+ * SRV lookup a `mongodb+srv://` URI does). The driver's actual socket connections
+ * go through `dns.lookup()` → getaddrinfo → the **OS** resolver, which ignores
+ * setServers(). So on a network whose DNS can't resolve `*.mongodb.net` (some
+ * ISP/router resolvers fail on Atlas's CNAME chain) you still get ENOTFOUND.
+ *
+ * We therefore also override `lookup()` — but only for `*.mongodb.net`, falling
+ * back to the OS resolver for that host on failure and for every other hostname,
+ * so nothing else in the process is affected.
+ */
 function applyDnsOverride(): void {
   const servers = env.DNS_SERVERS.split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-  if (servers.length > 0) dns.setServers(servers);
+  if (servers.length === 0) return;
+
+  dns.setServers(servers);
+
+  if (lookupPatched) return;
+  lookupPatched = true;
+
+  const resolver = new dns.Resolver();
+  resolver.setServers(servers);
+  const osLookup = dns.lookup as unknown as LookupFn;
+
+  const lookup: LookupFn = (hostname, options, callback) => {
+    const cb = (typeof options === 'function' ? options : callback) as LookupCallback;
+    const opts = (typeof options === 'function' ? {} : options) as dns.LookupOptions;
+
+    if (!/\.mongodb\.net$/i.test(hostname)) return osLookup(hostname, opts, cb);
+
+    resolver.resolve4(hostname, (err, addresses) => {
+      if (err || addresses.length === 0) return osLookup(hostname, opts, cb);
+      if (opts?.all) cb(null, addresses.map((address) => ({ address, family: 4 })));
+      else cb(null, addresses[0], 4);
+    });
+  };
+
+  (dns as unknown as { lookup: LookupFn }).lookup = lookup;
 }
+
+type LookupCallback = (
+  err: NodeJS.ErrnoException | null,
+  address?: string | dns.LookupAddress[],
+  family?: number,
+) => void;
+type LookupFn = (
+  hostname: string,
+  options: dns.LookupOptions | LookupCallback,
+  callback?: LookupCallback,
+) => void;
 
 /**
  * Serverless-safe Mongoose connection. Each warm function instance reuses one
